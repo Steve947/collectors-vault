@@ -887,6 +887,8 @@ function initFirebase() {
     firebaseMode = true;
     document.getElementById('cloudBadge').textContent = '☁ CLOUD';
     document.getElementById('modeLabel').textContent = 'Cloud Sync';
+    // Log current domain for debugging
+    console.log('Collector Vault running on domain:', window.location.hostname);
     setupAuthListener();
   } catch(e) {
     console.error('Firebase init error:', e);
@@ -898,6 +900,7 @@ function initFirebase() {
         <p style="color:#b8a98a;margin-bottom:16px">The app could not connect to Firebase. Error:</p>
         <pre style="background:#231f14;padding:12px;border-radius:6px;color:#c05050;font-size:12px;overflow:auto;margin-bottom:16px">${e.message}</pre>
         <p style="color:#7a6e58;font-size:13px">Please check: Firebase Console → Authentication → Settings → Authorised Domains → ensure <strong style="color:#e8c96a">${window.location.hostname}</strong> is listed.</p>
+        <p style="margin-top:10px;background:#1a1710;padding:10px;border-radius:6px;font-family:monospace;font-size:13px;color:#e8c96a">Current domain: ${window.location.hostname}</p>
         <button onclick="location.reload()" style="margin-top:16px;background:#c9a84c;color:#1a1200;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:600">Retry</button>
       </div>
     </div>`;
@@ -991,8 +994,9 @@ async function signUp() {
 async function signInGoogle() {
   try {
     const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({prompt: 'select_account'});
     await auth.signInWithPopup(provider);
-  } catch(e) { authError(friendlyAuthError(e)); }
+  } catch(e) { authError(friendlyAuthError(e) + ' (Code: ' + (e.code||'unknown') + ')'); }
 }
 function signOutUser() {
   if (!firebaseMode) { useDemoMode(); return; }
