@@ -10,11 +10,13 @@
 
 <!-- PWA Support -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#c9a84c">
+<meta name="theme-color" content="#16130a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hoardr">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="Hoardr">
 
@@ -50,7 +52,8 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
 #authScreen{position:fixed;inset:0;background:var(--bg);z-index:900;display:none;align-items:center;justify-content:center;padding:20px}
 .auth-box{background:var(--surface);border:1px solid var(--border2);border-radius:16px;padding:36px;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.7)}
 .auth-logo{text-align:center;margin-bottom:28px}
-.auth-logo .icon{font-size:48px;margin-bottom:10px}
+.auth-logo .icon{width:78px;height:78px;margin:0 auto 14px;filter:drop-shadow(0 6px 18px rgba(201,168,76,.28))}
+.auth-logo .icon svg{width:100%;height:100%;display:block}
 .auth-logo h2{font-family:'Playfair Display',serif;font-size:24px;font-weight:900;color:var(--gold2)}
 .auth-logo p{font-size:13px;color:var(--text3);margin-top:4px}
 .auth-tabs{display:flex;gap:2px;background:var(--surface2);border-radius:8px;padding:3px;margin-bottom:20px;border:1px solid var(--border)}
@@ -72,7 +75,9 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
 /* ── HEADER ── */
 header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border2);background:linear-gradient(180deg,#16130a 0%,var(--surface) 100%);position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(0,0,0,.7)}
 .logo{display:flex;align-items:center;gap:12px}
-.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--gold),var(--rust));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 12px rgba(201,168,76,.3)}
+.logo-icon{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px rgba(201,168,76,.22);transition:filter .2s,transform .2s}
+.logo-icon svg{width:100%;height:100%;display:block}
+.logo:hover .logo-icon{filter:brightness(1.08);transform:translateY(-1px)}
 .logo-text h1{font-family:'Playfair Display',serif;font-size:20px;font-weight:900;color:var(--gold2);line-height:1}
 .logo-text span{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:.15em;text-transform:uppercase}
 .header-stats{display:flex;gap:16px;align-items:center}
@@ -408,8 +413,50 @@ textarea{resize:vertical;min-height:75px}
 /* Small phones */
 @media(max-width:380px){
   .items-grid{grid-template-columns:1fr}
-  .logo-icon{width:30px;height:30px;font-size:16px}
+  .logo-icon{width:32px;height:32px}
 }
+
+/* ════ PREMIUM POLISH ════ */
+*{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+::selection{background:rgba(201,168,76,.32);color:var(--gold3)}
+
+/* depth: subtle warm vignette behind the app */
+body{background:
+  radial-gradient(1200px 600px at 50% -10%, rgba(201,168,76,.06), transparent 60%),
+  radial-gradient(900px 500px at 100% 100%, rgba(160,74,42,.05), transparent 60%),
+  var(--bg);
+  background-attachment:fixed}
+
+/* wordmark refinement */
+.logo-text h1{letter-spacing:.01em;text-shadow:0 1px 14px rgba(201,168,76,.18)}
+.auth-logo h2{letter-spacing:.01em}
+
+/* hairline gold accent across the header */
+header{border-top:2px solid transparent;border-image:linear-gradient(90deg,transparent,var(--gold),var(--rust2),transparent) 1}
+
+/* premium gold buttons: inner sheen + deeper hover */
+.btn-gold{position:relative;box-shadow:inset 0 1px 0 rgba(255,247,221,.45),0 1px 2px rgba(0,0,0,.4);font-weight:600;letter-spacing:.01em}
+.btn-gold:hover{box-shadow:inset 0 1px 0 rgba(255,247,221,.55),0 6px 18px rgba(201,168,76,.38)}
+.btn:active{transform:translateY(0)!important}
+
+/* stat pills get a soft glow & gold value */
+.stat-pill{box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.stat-pill strong{text-shadow:0 0 10px rgba(201,168,76,.35)}
+
+/* card thumbnails: gentle gold ring on hover, smoother lift */
+.item-card{box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.item-card:hover{box-shadow:0 10px 30px rgba(0,0,0,.55),0 0 0 1px rgba(232,201,106,.35)}
+
+/* refined gold scrollbars */
+.content-area::-webkit-scrollbar-thumb,.panel-body::-webkit-scrollbar-thumb{background:linear-gradient(var(--border2),var(--gold));border-radius:3px}
+.content-area::-webkit-scrollbar-thumb:hover{background:var(--gold)}
+
+/* panels & dialogs feel weightier */
+.panel{box-shadow:-12px 0 50px rgba(0,0,0,.7)}
+.auth-box{box-shadow:0 24px 70px rgba(0,0,0,.75),inset 0 1px 0 rgba(255,247,221,.04)}
+
+/* inputs: slightly stronger focus glow */
+input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16)!important}
 </style>
 </head>
 <body>
@@ -422,7 +469,7 @@ textarea{resize:vertical;min-height:75px}
 <div id="authScreen">
   <div class="auth-box">
     <div class="auth-logo">
-      <div class="icon">🏆</div>
+      <div class="icon"><svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hoardr"><defs><radialGradient id="htA" cx="50%" cy="38%" r="75%"><stop offset="0%" stop-color="#241f14"/><stop offset="55%" stop-color="#16130b"/><stop offset="100%" stop-color="#0c0a06"/></radialGradient><linearGradient id="hgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f8ecb8"/><stop offset="32%" stop-color="#e8c96a"/><stop offset="62%" stop-color="#c9a84c"/><stop offset="100%" stop-color="#92671f"/></linearGradient><linearGradient id="hrA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e8c96a" stop-opacity=".9"/><stop offset="100%" stop-color="#7a5a1e" stop-opacity=".35"/></linearGradient></defs><rect x="16" y="16" width="480" height="480" rx="116" fill="url(#htA)"/><rect x="22.5" y="22.5" width="467" height="467" rx="110" fill="none" stroke="url(#hrA)" stroke-width="6"/><g fill="url(#hgA)"><rect x="170" y="158" width="44" height="196"/><rect x="298" y="158" width="44" height="196"/><rect x="214" y="244" width="84" height="24"/><rect x="156" y="158" width="72" height="13" rx="2"/><rect x="156" y="341" width="72" height="13" rx="2"/><rect x="284" y="158" width="72" height="13" rx="2"/><rect x="284" y="341" width="72" height="13" rx="2"/></g></svg></div>
       <h2>Hoardr</h2>
       <p>Sign in to access your Hoardr collection</p>
     </div>
@@ -531,7 +578,7 @@ textarea{resize:vertical;min-height:75px}
 
 <header>
   <div class="logo">
-    <div class="logo-icon">🏆</div>
+    <div class="logo-icon"><svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hoardr"><defs><radialGradient id="htH" cx="50%" cy="38%" r="75%"><stop offset="0%" stop-color="#241f14"/><stop offset="55%" stop-color="#16130b"/><stop offset="100%" stop-color="#0c0a06"/></radialGradient><linearGradient id="hgH" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f8ecb8"/><stop offset="32%" stop-color="#e8c96a"/><stop offset="62%" stop-color="#c9a84c"/><stop offset="100%" stop-color="#92671f"/></linearGradient><linearGradient id="hrH" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e8c96a" stop-opacity=".9"/><stop offset="100%" stop-color="#7a5a1e" stop-opacity=".35"/></linearGradient></defs><rect x="16" y="16" width="480" height="480" rx="116" fill="url(#htH)"/><rect x="22.5" y="22.5" width="467" height="467" rx="110" fill="none" stroke="url(#hrH)" stroke-width="6"/><g fill="url(#hgH)"><rect x="170" y="158" width="44" height="196"/><rect x="298" y="158" width="44" height="196"/><rect x="214" y="244" width="84" height="24"/><rect x="156" y="158" width="72" height="13" rx="2"/><rect x="156" y="341" width="72" height="13" rx="2"/><rect x="284" y="158" width="72" height="13" rx="2"/><rect x="284" y="341" width="72" height="13" rx="2"/></g></svg></div>
     <div class="logo-text">
       <h1>Hoardr</h1>
       <span id="modeLabel" style="font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)">Cloud Sync</span>
