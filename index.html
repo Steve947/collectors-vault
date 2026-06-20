@@ -671,6 +671,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
         <option value="category|1">Category</option>
       </select>
       <button class="btn btn-outline btn-sm" id="selectBtn" onclick="toggleSelectMode()" title="Select multiple items">☑ Select</button>
+      <button class="btn btn-outline btn-sm" id="selectAllBtn" onclick="selectAll()" title="Select all visible" style="display:none">Select all</button>
       <div class="view-toggle">
         <button class="view-btn active" id="viewGrid" onclick="setView('grid')" title="Grid">⊞</button>
         <button class="view-btn" id="viewList" onclick="setView('list')" title="List">☰</button>
@@ -1074,6 +1075,8 @@ function showInstallBanner() {
   if (window.matchMedia('(display-mode: standalone)').matches) return;
   // Don't show again if the user previously dismissed it
   try { if (localStorage.getItem('hoardr_install_dismissed')) return; } catch(e){}
+  // Show at most once per browser session (so a refresh doesn't keep popping it up)
+  try { if (sessionStorage.getItem('hoardr_install_shown')) return; sessionStorage.setItem('hoardr_install_shown','1'); } catch(e){}
   const banner = document.createElement('div');
   banner.id = 'pwaInstallBanner';
   banner.style.cssText = `position:fixed;bottom:72px;left:50%;transform:translateX(-50%);
@@ -2043,10 +2046,19 @@ function toggleSelectMode(){
   selectMode=!selectMode; if(!selectMode) selectedIds.clear();
   const b=document.getElementById('selectBtn');
   if(b){ b.textContent=selectMode?'✕ Cancel':'☑ Select'; b.classList.toggle('btn-gold',selectMode); b.classList.toggle('btn-outline',!selectMode); }
+  const sa=document.getElementById('selectAllBtn'); if(sa) sa.style.display=selectMode?'':'none';
+  renderContent();
+}
+function selectAll(){
+  const items=getFilteredItems();
+  if(items.length && selectedIds.size>=items.length){ selectedIds.clear(); }
+  else { items.forEach(i=>selectedIds.add(i.id)); }
   renderContent();
 }
 function clearSelection(){ selectedIds.clear(); renderContent(); }
 function updateBulkBar(){
+  const sa=document.getElementById('selectAllBtn');
+  if(sa && selectMode){ const total=getFilteredItems().length; sa.textContent=(total>0&&selectedIds.size>=total)?'Deselect all':'Select all'; }
   const bar=document.getElementById('bulkBar'); if(!bar) return;
   if(selectMode && selectedIds.size>0){ bar.style.display='flex'; document.getElementById('bulkCount').textContent=selectedIds.size+' selected'; }
   else bar.style.display='none';
@@ -2096,7 +2108,7 @@ async function doBulkMove(ids, gid){
 }
 function showOnboarding(){ const m=document.getElementById('onboardModal'); if(m) m.classList.add('open'); }
 function closeOnboarding(markSeen){ const m=document.getElementById('onboardModal'); if(m) m.classList.remove('open'); if(markSeen){ try{localStorage.setItem('hoardr_onboarded','1');}catch(e){} } }
-function maybeShowOnboarding(){ try{ if(!localStorage.getItem('hoardr_onboarded')) showOnboarding(); }catch(e){} }
+function maybeShowOnboarding(){ try{ if(!localStorage.getItem('hoardr_onboarded')){ showOnboarding(); localStorage.setItem('hoardr_onboarded','1'); } }catch(e){} }
 
 // ═══════════════════════════════════════════════════════════
 // IMPORT / EXPORT
@@ -2137,14 +2149,20 @@ function compressForExcel(base64){
     if(!base64||!base64.startsWith('data:image')){resolve('');return;}
     const img=new Image();
     img.onload=()=>{
-      const MAX=400;
-      let w=img.width,h=img.height;
-      if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}
-      else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
-      const c=document.createElement('canvas');
-      c.width=w;c.height=h;
-      c.getContext('2d').drawImage(img,0,0,w,h);
-      resolve(c.toDataURL('image/jpeg',0.65));
+      const draw=(maxDim,q)=>{
+        let w=img.width,h=img.height;
+        const s=Math.min(1,maxDim/Math.max(w,h));
+        w=Math.max(1,Math.round(w*s)); h=Math.max(1,Math.round(h*s));
+        const c=document.createElement('canvas'); c.width=w; c.height=h;
+        c.getContext('2d').drawImage(img,0,0,w,h);
+        return c.toDataURL('image/jpeg',q);
+      };
+      // shrink until the data URL fits safely inside one Excel cell (<32,767 chars)
+      const steps=[[320,0.6],[280,0.55],[240,0.5],[200,0.45],[160,0.42],[120,0.4]];
+      let out='';
+      for(const st of steps){ out=draw(st[0],st[1]); if(out.length<=31000) break; }
+      if(out.length>31000) out='';
+      resolve(out);
     };
     img.onerror=()=>resolve('');
     img.src=base64;
@@ -2262,36 +2280,28 @@ async function exportExcel(){
     {wch:28},{wch:40},{wch:40},{wch:24},{wch:8},{wch:24},{wch:22}];
   XLSX.utils.book_append_sheet(wb,wsAll,'All Items');
 
-  // ── Photos sheet — base64 chunked across columns (Excel caps each cell at 32,767 chars) ──
+  // ── Photos sheet — one viewable thumbnail per cell (kept under Excel's 32,767 char limit) ──
   let hasPhotos=false;
-  const _CHUNK=32000; const _photoData=[]; let _maxChunks=1;
+  const photoHdr=['Collection','Group','Item Name','Photo #','How to View','Photo Data (for re-import)'];
+  const photoRows=[photoHdr];
   for(const col of db.collections){
     for(const grp of db.groups.filter(g=>g.collectionId===col.id)){
       for(const item of db.items.filter(i=>i.groupId===grp.id)){
         const photos=(item.photos||[]).filter(p=>p);
         for(let pi=0;pi<photos.length;pi++){
-          const c=(await compressForExcel(photos[pi]))||photos[pi]||'';
-          const n=Math.max(1,Math.ceil(c.length/_CHUNK));
-          if(n>_maxChunks)_maxChunks=n;
-          _photoData.push({c:col.name,g:grp.name,it:item.name,pi:pi+1,b64:c});
+          const c=(await compressForExcel(photos[pi]))||'';
+          if(!c) continue;
+          hasPhotos=true;
+          photoRows.push([col.name,grp.name,item.name,'Photo '+(pi+1),
+            'Copy this row\'s Photo Data cell, open a NEW browser tab, paste into the address bar and press Enter',
+            c]);
         }
       }
     }
   }
-  if(_photoData.length){
-    hasPhotos=true;
-    const photoHdr=['Collection','Group','Item Name','Photo #'];
-    for(let k=0;k<_maxChunks;k++) photoHdr.push('Photo Data '+(k+1));
-    const photoRows=[photoHdr];
-    _photoData.forEach(pd=>{
-      const r=[pd.c,pd.g,pd.it,'Photo '+pd.pi];
-      for(let k=0;k<_maxChunks;k++) r.push(pd.b64.slice(k*_CHUNK,(k+1)*_CHUNK));
-      photoRows.push(r);
-    });
+  if(hasPhotos){
     const wsPhotos=XLSX.utils.aoa_to_sheet(photoRows);
-    const pcols=[{wch:24},{wch:22},{wch:34},{wch:10}];
-    for(let k=0;k<_maxChunks;k++) pcols.push({wch:60});
-    wsPhotos['!cols']=pcols;
+    wsPhotos['!cols']=[{wch:24},{wch:22},{wch:34},{wch:10},{wch:60},{wch:80}];
     XLSX.utils.book_append_sheet(wb,wsPhotos,'Photos');
   }
 
