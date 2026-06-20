@@ -580,11 +580,12 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
     <button class="btn btn-green" style="justify-content:center" onclick="saveLocally();toggleMobileMenu()">💾 Save to Device</button>
-    <label class="btn btn-outline" style="cursor:pointer;justify-content:center">
+    <label class="btn btn-green" style="cursor:pointer;justify-content:center">
       📁 Load Backup
       <input type="file" accept=".json" style="display:none" onchange="loadFromBackup(event);toggleMobileMenu()">
     </label>
     <button class="btn btn-blue" style="justify-content:center" onclick="shareCollection();toggleMobileMenu()">📤 Share</button>
+    <button class="btn btn-outline" style="justify-content:center" onclick="openProfile();toggleMobileMenu()">👤 Profile</button>
     <button class="btn btn-outline" onclick="signOutUser();toggleMobileMenu()">Sign Out</button>
   </div>
 </div>
@@ -608,7 +609,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <button id="menuToggle" class="btn btn-outline btn-sm btn-icon" onclick="toggleDrawer()" style="display:none" title="Collections">☰</button>
     <span id="syncIndicator" title="Sync status"><span class="sync-dot" id="syncDot"></span><span id="syncLabel" style="font-size:11px;color:var(--text3)">Synced</span></span>
     <span class="cloud-badge" id="cloudBadge">☁ CLOUD</span>
-    <span class="user-chip" id="userChip">👤 <span id="userName">—</span></span>
+    <span class="user-chip" id="userChip" onclick="openProfile()" style="cursor:pointer" title="Profile & account">👤 <span id="userName">—</span></span>
     <button class="btn btn-outline btn-sm" onclick="showOnboarding()" title="How Hoardr works">?</button>
     <button class="btn btn-outline btn-sm" onclick="signOutUser()">Sign Out</button>
     <button class="btn btn-outline btn-sm" onclick="openCollectionModal()">＋ Collection</button>
@@ -716,7 +717,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       </div>
       <div class="io-group">
         <button class="btn btn-green btn-sm" onclick="saveLocally()">💾 Backup</button>
-        <label class="btn btn-outline btn-sm" style="cursor:pointer">
+        <label class="btn btn-green btn-sm" style="cursor:pointer">
           📁 Load Backup
           <input type="file" accept=".json" style="display:none" onchange="loadFromBackup(event)">
         </label>
@@ -955,6 +956,22 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     </div>
     <p style="color:var(--text3);font-size:12px;text-align:center;margin:12px 0">Start with <b>＋ Collection</b>, add Groups, then Items. Reach this guide again from the <b>?</b> button up top.</p>
     <button class="btn btn-gold" style="width:100%;justify-content:center" onclick="closeOnboarding(true)">Get started →</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="profileModal" onclick="closeIfBg(event,'profileModal')">
+  <div class="modal-box" onclick="event.stopPropagation()" style="max-width:440px">
+    <div class="modal-title">My Profile</div>
+    <div class="field-row"><label>Display Name</label><input type="text" id="pfName" placeholder="Your name"></div>
+    <div class="field-row"><label>Email</label><input type="text" id="pfEmail" disabled style="opacity:.65;cursor:not-allowed"></div>
+    <div id="pfVerifyRow" style="font-size:12px;margin:-6px 0 14px"></div>
+    <button class="btn btn-gold" style="width:100%;justify-content:center;margin-bottom:10px" onclick="saveProfile()">Save changes</button>
+    <div id="pfPasswordRow"><button class="btn btn-outline" style="width:100%;justify-content:center" onclick="changePasswordEmail()">🔑 Send password reset email</button></div>
+    <hr class="section-divider">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--red2);margin-bottom:8px">Danger zone</div>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:10px">Deleting your account permanently removes your profile and every collection, group, item and photo. This cannot be undone.</p>
+    <button class="btn btn-danger" style="width:100%;justify-content:center" onclick="deleteAccount()">🗑 Delete my account & all data</button>
+    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:14px" onclick="closeModal('profileModal')">Close</button>
   </div>
 </div>
 
@@ -2109,6 +2126,67 @@ async function doBulkMove(ids, gid){
 function showOnboarding(){ const m=document.getElementById('onboardModal'); if(m) m.classList.add('open'); }
 function closeOnboarding(markSeen){ const m=document.getElementById('onboardModal'); if(m) m.classList.remove('open'); if(markSeen){ try{localStorage.setItem('hoardr_onboarded','1');}catch(e){} } }
 function maybeShowOnboarding(){ try{ if(!localStorage.getItem('hoardr_onboarded')){ showOnboarding(); localStorage.setItem('hoardr_onboarded','1'); } }catch(e){} }
+
+// ── Profile & account ──
+function openProfile(){
+  if(!currentUser){ showToast('Not signed in','⚠️'); return; }
+  document.getElementById('pfName').value=currentUser.displayName||'';
+  document.getElementById('pfEmail').value=currentUser.email||'';
+  const isGoogle=(currentUser.providerData||[]).some(pr=>pr&&pr.providerId==='google.com');
+  document.getElementById('pfPasswordRow').style.display=isGoogle?'none':'block';
+  const vr=document.getElementById('pfVerifyRow');
+  if(currentUser.emailVerified){ vr.innerHTML='<span style="color:var(--green2)">✓ Email verified</span>'; }
+  else { vr.innerHTML='<span style="color:var(--text3)">Email not verified — </span><a href="#" onclick="resendVerification();return false" style="color:var(--gold2)">resend verification</a>'; }
+  openModal('profileModal');
+}
+async function saveProfile(){
+  if(!currentUser) return;
+  const name=document.getElementById('pfName').value.trim();
+  try{
+    await currentUser.updateProfile({displayName:name});
+    document.getElementById('userName').textContent=name||(currentUser.email||'').split('@')[0];
+    showToast('Profile updated','✓');
+    closeModal('profileModal');
+  }catch(e){ showToast('Update failed — '+((e&&e.message)||e),'⚠️'); }
+}
+async function changePasswordEmail(){
+  if(!currentUser||!currentUser.email) return;
+  try{ await auth.sendPasswordResetEmail(currentUser.email); showToast('Password reset email sent to '+currentUser.email,'✉️'); }
+  catch(e){ showToast('Failed — '+((e&&e.message)||e),'⚠️'); }
+}
+async function resendVerification(){
+  if(!currentUser) return;
+  try{ await currentUser.sendEmailVerification(); showToast('Verification email sent','✉️'); }
+  catch(e){ showToast('Failed — '+((e&&e.message)||e),'⚠️'); }
+}
+async function deleteAccount(){
+  if(!currentUser) return;
+  if(!confirm('Permanently delete your account AND all your collections, groups, items and photos? This cannot be undone.')) return;
+  const typed=prompt('To confirm, type DELETE (in capitals):');
+  if(typed!=='DELETE'){ showToast('Deletion cancelled','✕'); return; }
+  try{
+    setSyncStatus('syncing');
+    if(firebaseMode){
+      for(const c of ['items','groups','collections']){
+        const snap=await firestoreDb.collection(`${userPath()}/${c}`).get();
+        const docs=snap.docs;
+        for(let i=0;i<docs.length;i+=400){
+          const batch=firestoreDb.batch();
+          docs.slice(i,i+400).forEach(d=>batch.delete(d.ref));
+          await batch.commit();
+        }
+      }
+      await currentUser.delete();
+    }
+    showToast('Account deleted','✓');
+    closeModal('profileModal');
+  }catch(e){
+    setSyncStatus('synced');
+    if(e&&e.code==='auth/requires-recent-login'){
+      showToast('For security, please sign out and sign in again, then delete.','⚠️');
+    } else { showToast('Delete failed — '+((e&&e.message)||e),'⚠️'); }
+  }
+}
 
 // ═══════════════════════════════════════════════════════════
 // IMPORT / EXPORT
