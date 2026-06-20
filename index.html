@@ -1072,6 +1072,8 @@ function showInstallBanner() {
   if (!_pwaInstallPrompt) return;
   // Don't show if already installed
   if (window.matchMedia('(display-mode: standalone)').matches) return;
+  // Don't show again if the user previously dismissed it
+  try { if (localStorage.getItem('hoardr_install_dismissed')) return; } catch(e){}
   const banner = document.createElement('div');
   banner.id = 'pwaInstallBanner';
   banner.style.cssText = `position:fixed;bottom:72px;left:50%;transform:translateX(-50%);
@@ -1087,7 +1089,7 @@ function showInstallBanner() {
     <button onclick="installPWA()" style="background:linear-gradient(135deg,var(--gold),#a87a30);
       color:#1a1200;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;
       font-weight:600;font-size:12px;white-space:nowrap">Install</button>
-    <button onclick="document.getElementById('pwaInstallBanner').remove()"
+    <button onclick="try{localStorage.setItem('hoardr_install_dismissed','1')}catch(e){};document.getElementById('pwaInstallBanner').remove()"
       style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0 4px">✕</button>`;
   document.body.appendChild(banner);
 }
@@ -2149,11 +2151,13 @@ function compressForExcel(base64){
   });
 }
 
+function _xc(v){return (typeof v==='string'&&v.length>32767)?v.slice(0,32760)+'…':v;}
+function _aoa(rows){return XLSX.utils.aoa_to_sheet(rows.map(r=>r.map(_xc)));}
 async function exportExcel(){
   if(!db.items.length && !db.collections.length){showToast('Nothing to export','⚠️');return;}
   showToast('Building Excel — please wait…','⏳');
   await new Promise(r=>setTimeout(r,60));
-
+  try{
   const wb=XLSX.utils.book_new();
 
   // ── Sheet 1: Summary ──────────────────────────────────────
@@ -2177,7 +2181,7 @@ async function exportExcel(){
     });
     summaryRows.push(['','','','','']);
   });
-  const wsSummary=XLSX.utils.aoa_to_sheet(summaryRows);
+  const wsSummary=_aoa(summaryRows);
   wsSummary['!cols']=[{wch:44},{wch:18},{wch:16},{wch:14},{wch:14}];
   XLSX.utils.book_append_sheet(wb,wsSummary,'Summary');
 
@@ -2220,7 +2224,7 @@ async function exportExcel(){
       sheetRows.push([]);
     });
 
-    const wsCol=XLSX.utils.aoa_to_sheet(sheetRows);
+    const wsCol=_aoa(sheetRows);
     wsCol['!cols']=[{wch:5},{wch:34},{wch:16},{wch:22},{wch:12},{wch:18},
       {wch:12},{wch:14},{wch:14},{wch:18},{wch:18},{wch:20},{wch:14},
       {wch:28},{wch:40},{wch:40},{wch:24},{wch:8},{wch:24},{wch:22}];
@@ -2252,46 +2256,48 @@ async function exportExcel(){
       });
     });
   });
-  const wsAll=XLSX.utils.aoa_to_sheet(allRows);
+  const wsAll=_aoa(allRows);
   wsAll['!cols']=[{wch:5},{wch:24},{wch:22},{wch:34},{wch:16},{wch:12},{wch:18},
     {wch:12},{wch:14},{wch:14},{wch:18},{wch:18},{wch:20},{wch:14},
     {wch:28},{wch:40},{wch:40},{wch:24},{wch:8},{wch:24},{wch:22}];
   XLSX.utils.book_append_sheet(wb,wsAll,'All Items');
 
-  // ── Photos sheet — one row per photo, open in browser by copying URL ──────
-  // We write photos to a separate HTML file alongside the xlsx so they can be viewed
-  // In the sheet itself: Collection | Group | Item | Photo # | File Name | [base64 stored for import]
-  const photoHdr=['Collection','Group','Item Name','Photo #','How to View','Photo Data (for re-import)'];
-  const photoRows=[photoHdr];
+  // ── Photos sheet — base64 chunked across columns (Excel caps each cell at 32,767 chars) ──
   let hasPhotos=false;
-
-  // Compress photos for storage
+  const _CHUNK=32000; const _photoData=[]; let _maxChunks=1;
   for(const col of db.collections){
     for(const grp of db.groups.filter(g=>g.collectionId===col.id)){
       for(const item of db.items.filter(i=>i.groupId===grp.id)){
         const photos=(item.photos||[]).filter(p=>p);
         for(let pi=0;pi<photos.length;pi++){
-          hasPhotos=true;
-          const compressed=await compressForExcel(photos[pi]);
-          photoRows.push([
-            col.name, grp.name, item.name,
-            'Photo '+(pi+1),
-            'Copy the Photo Data cell value and paste into your browser address bar to view',
-            compressed||photos[pi]
-          ]);
+          const c=(await compressForExcel(photos[pi]))||photos[pi]||'';
+          const n=Math.max(1,Math.ceil(c.length/_CHUNK));
+          if(n>_maxChunks)_maxChunks=n;
+          _photoData.push({c:col.name,g:grp.name,it:item.name,pi:pi+1,b64:c});
         }
       }
     }
   }
-
-  if(hasPhotos){
+  if(_photoData.length){
+    hasPhotos=true;
+    const photoHdr=['Collection','Group','Item Name','Photo #'];
+    for(let k=0;k<_maxChunks;k++) photoHdr.push('Photo Data '+(k+1));
+    const photoRows=[photoHdr];
+    _photoData.forEach(pd=>{
+      const r=[pd.c,pd.g,pd.it,'Photo '+pd.pi];
+      for(let k=0;k<_maxChunks;k++) r.push(pd.b64.slice(k*_CHUNK,(k+1)*_CHUNK));
+      photoRows.push(r);
+    });
     const wsPhotos=XLSX.utils.aoa_to_sheet(photoRows);
-    wsPhotos['!cols']=[{wch:24},{wch:22},{wch:34},{wch:10},{wch:55},{wch:80}];
+    const pcols=[{wch:24},{wch:22},{wch:34},{wch:10}];
+    for(let k=0;k<_maxChunks;k++) pcols.push({wch:60});
+    wsPhotos['!cols']=pcols;
     XLSX.utils.book_append_sheet(wb,wsPhotos,'Photos');
   }
 
   XLSX.writeFile(wb,'collectors_vault_export.xlsx');
   showToast('Excel exported'+(hasPhotos?' — photos on Photos sheet':''),'📊');
+  }catch(err){ console.error('Excel export failed',err); showToast('Excel export failed — '+((err&&err.message)||err),'⚠️'); }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -2320,22 +2326,21 @@ async function importExcel(e){
         'Total Cost-$AU' in rows[0] || 'Scale Ratio' in rows[0]
       );
 
-      // Pre-scan: collect photo rows keyed to their preceding item name
+      // Reassemble photos from the dedicated Photos sheet (base64 chunked across 'Photo Data N' columns; also handles the old single-column format)
       const _pendingPhotos={};
-      let _lastItem='';
-      for(const row of rows){
-        const n=(row['Item Name']||row.Name||'').toString().trim();
-        const lbl=(row['Item Name']||row.Name||row['Collection']||'').toString().trim();
-        const photoBase=(row['Group']||row['Category']||'').toString().trim();
-        if((lbl.trim().startsWith('Photo ')&&!n)||photoBase.startsWith('data:image')){
-          const b64=(row['Category']||row['Group']||Object.values(row).find(v=>typeof v==='string'&&v.startsWith('data:image'))||'');
-          if(b64&&b64.startsWith('data:image')&&_lastItem){
-            if(!_pendingPhotos[_lastItem])_pendingPhotos[_lastItem]=[];
-            _pendingPhotos[_lastItem].push(b64);
+      if(wb.SheetNames.includes('Photos')){
+        const prows=XLSX.utils.sheet_to_json(wb.Sheets['Photos']);
+        prows.forEach(pr=>{
+          const itn=(pr['Item Name']||'').toString().trim();
+          if(!itn) return;
+          let b64='';
+          Object.keys(pr).forEach(k=>{ if(k.indexOf('Photo Data')===0) b64+=String(pr[k]||''); });
+          b64=b64.trim();
+          if(b64.startsWith('data:image')){
+            if(!_pendingPhotos[itn])_pendingPhotos[itn]=[];
+            _pendingPhotos[itn].push(b64);
           }
-        } else if(n&&!n.startsWith('──')&&!n.startsWith('COLLECTION')){
-          _lastItem=n;
-        }
+        });
       }
 
       // Helper to convert Excel serial date to YYYY-MM-DD
