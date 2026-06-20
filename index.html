@@ -37,7 +37,7 @@
   --border:#3d3520; --border2:#524a2a;
   --gold:#c9a84c; --gold2:#e8c96a; --gold3:#f5e199;
   --rust:#a04a2a; --rust2:#c46040;
-  --text:#e8dfc8; --text2:#b8a98a; --text3:#7a6e58;
+  --text:#efe7d2; --text2:#cdbf9d; --text3:#9c8e6c;
   --green:#4a7c59; --green2:#6aab7a;
   --blue:#3a6080; --blue2:#5a8eb0;
   --red:#8a3030; --red2:#c05050;
@@ -487,6 +487,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <div class="field-row"><label>Email</label><input type="email" id="siEmail" placeholder="your@email.com"></div>
       <div class="field-row"><label>Password</label><input type="password" id="siPass" placeholder="Password"></div>
       <button class="btn btn-gold" style="width:100%;justify-content:center" onclick="signIn()">Sign In →</button>
+      <div style="text-align:center;margin-top:10px"><a href="#" onclick="resetPassword();return false" style="color:var(--text3);font-size:12px;text-decoration:none">Forgot password?</a></div>
     </div>
     <div id="signupForm" style="display:none">
       <div class="field-row"><label>Display Name</label><input type="text" id="suName" placeholder="Your name"></div>
@@ -572,6 +573,10 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
     <button class="btn btn-green" style="justify-content:center" onclick="saveLocally();toggleMobileMenu()">💾 Save to Device</button>
+    <label class="btn btn-outline" style="cursor:pointer;justify-content:center">
+      📁 Load Backup
+      <input type="file" accept=".json" style="display:none" onchange="loadFromBackup(event);toggleMobileMenu()">
+    </label>
     <button class="btn btn-blue" style="justify-content:center" onclick="shareCollection();toggleMobileMenu()">📤 Share</button>
     <button class="btn btn-outline" onclick="signOutUser();toggleMobileMenu()">Sign Out</button>
   </div>
@@ -690,6 +695,10 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       </div>
       <div class="io-group">
         <button class="btn btn-green btn-sm" onclick="saveLocally()">💾 Backup</button>
+        <label class="btn btn-outline btn-sm" style="cursor:pointer">
+          📁 Load Backup
+          <input type="file" accept=".json" style="display:none" onchange="loadFromBackup(event)">
+        </label>
         <button class="btn btn-blue btn-sm" onclick="shareCollection()">📤 Share</button>
       </div>
     </div>
@@ -904,7 +913,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
 </div>
 
 <!-- TOAST -->
-<div class="toast" id="toast"><span id="toastIcon">✓</span><span id="toastMsg">Saved</span></div>
+<div class="toast" id="toast"><span id="toastIcon">✓</span><span id="toastMsg">Saved</span><button id="toastAction" onclick="toastActionClick()" style="display:none;background:var(--gold);color:#1a1200;border:none;border-radius:5px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px">Undo</button></div>
 
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -1101,6 +1110,15 @@ async function signIn() {
   }
   catch(e) { authError(friendlyAuthError(e) + ' (Code: ' + e.code + ')'); }
 }
+async function resetPassword() {
+  const email = (document.getElementById('siEmail').value||'').trim();
+  if (!email) { authError('Enter your email above, then click “Forgot password?” again.'); return; }
+  try {
+    await auth.sendPasswordResetEmail(email);
+    document.getElementById('authError').style.display='none';
+    showToast('Password reset email sent to ' + email, '✉️');
+  } catch(e) { authError(friendlyAuthError(e)); }
+}
 async function signUp() {
   const name = document.getElementById('suName').value.trim();
   const email = document.getElementById('suEmail').value.trim();
@@ -1109,6 +1127,7 @@ async function signUp() {
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     if (name) await cred.user.updateProfile({ displayName: name });
+    try { await cred.user.sendEmailVerification(); showToast('Account created — check your email to verify your address','✉️'); } catch(_e){}
   } catch(e) { authError(friendlyAuthError(e)); }
 }
 async function signInGoogle() {
@@ -1496,7 +1515,8 @@ async function saveItem() {
 }
 
 async function deleteItem(id) {
-  if (!confirm('Delete this item permanently?')) return;
+  const removed = db.items.find(i=>i.id===id);
+  const snapshot = removed ? JSON.parse(JSON.stringify(removed)) : null;
   if (firebaseMode) {
     setSyncStatus('syncing');
     await firestoreDb.doc(`${userPath()}/items/${id}`).delete();
@@ -1505,7 +1525,8 @@ async function deleteItem(id) {
     db.items = db.items.filter(i=>i.id!==id);
     saveLocal(); render();
   }
-  showToast('Item deleted','🗑');
+  closePanel('viewOverlay');
+  showToast('Item deleted','🗑', snapshot?'Undo':null, snapshot?()=>restoreItem(snapshot):null);
 }
 
 function duplicateItem(id) {
@@ -2977,11 +2998,35 @@ window.addEventListener('DOMContentLoaded', renderIconPickers);
 
 // selectGroup/selectCollection/selectAll already handle mobile drawer in their own functions
 function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function showToast(msg,icon='✓'){
+let _toastActionFn=null;
+function showToast(msg,icon='✓',actionLabel=null,actionFn=null){
   const t=document.getElementById('toast');
   document.getElementById('toastMsg').textContent=msg;
   document.getElementById('toastIcon').textContent=icon;
-  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);
+  const ab=document.getElementById('toastAction');
+  if(ab){
+    if(actionLabel&&actionFn){ _toastActionFn=actionFn; ab.textContent=actionLabel; ab.style.display='inline-block'; }
+    else { _toastActionFn=null; ab.style.display='none'; }
+  }
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer=setTimeout(()=>t.classList.remove('show'), (actionLabel&&actionFn)?6000:2500);
+}
+function toastActionClick(){
+  const fn=_toastActionFn; _toastActionFn=null;
+  document.getElementById('toast').classList.remove('show');
+  if(fn) fn();
+}
+async function restoreItem(item){
+  if(!item) return;
+  if(firebaseMode){
+    setSyncStatus('syncing');
+    await firestoreDb.doc(`${userPath()}/items/${item.id}`).set(item);
+    setSyncStatus('synced');
+  } else {
+    db.items.push(item); saveLocal(); render();
+  }
+  showToast('Item restored','↩');
 }
 function openPanel(id){document.getElementById(id).classList.add('open');document.body.style.overflow='hidden';}
 function closePanel(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
