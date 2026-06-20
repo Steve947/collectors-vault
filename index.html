@@ -253,7 +253,12 @@ textarea{resize:vertical;min-height:75px}
 .tag{font-size:11px;padding:2px 9px;border-radius:10px;background:var(--surface3);border:1px solid var(--border2);color:var(--text2);cursor:pointer}
 .tag:hover{border-color:var(--rust2);color:var(--rust2)}
 .tags-wrap{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-.io-strip{display:flex;gap:8px;padding:9px 20px;border-top:1px solid var(--border);background:var(--surface);align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.io-strip{display:flex;gap:14px;padding:11px 20px;border-top:1px solid var(--border);background:linear-gradient(180deg,var(--surface) 0%,#15120b 100%);align-items:center;justify-content:center;flex-wrap:wrap}
+.io-group{display:flex;gap:6px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
+.icon-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:4px;margin-top:2px;max-height:128px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px}
+.icon-pick{font-size:18px;line-height:1;background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;padding:4px 0;transition:all .12s}
+.icon-pick:hover{background:var(--surface3);border-color:var(--gold)}
+.icon-pick.sel{border-color:var(--gold);background:rgba(201,168,76,.15)}
 .io-label{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--text3);letter-spacing:.1em;margin-right:4px}
 .rating-stars{display:flex;gap:3px}
 .star{cursor:pointer;font-size:15px;color:var(--border2);transition:color .1s}
@@ -567,10 +572,6 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
     <button class="btn btn-green" style="justify-content:center" onclick="saveLocally();toggleMobileMenu()">💾 Save to Device</button>
-    <label class="btn btn-outline" style="cursor:pointer;justify-content:center">
-      📁 Load Backup
-      <input type="file" accept=".json" style="display:none" onchange="loadFromBackup(event);toggleMobileMenu()">
-    </label>
     <button class="btn btn-blue" style="justify-content:center" onclick="shareCollection();toggleMobileMenu()">📤 Share</button>
     <button class="btn btn-outline" onclick="signOutUser();toggleMobileMenu()">Sign Out</button>
   </div>
@@ -679,23 +680,18 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       </div>
     </div>
     <div class="io-strip">
-      <span class="io-label">EXPORT:</span>
-      <button class="btn btn-outline btn-sm" onclick="exportExcel()">📊 Excel</button>
-      <button class="btn btn-outline btn-sm" onclick="exportPDF()">📄 PDF</button>
-      <div style="width:1px;height:24px;background:var(--border);margin:0 2px"></div>
-      <span class="io-label">IMPORT:</span>
-      <label class="btn btn-outline btn-sm" style="cursor:pointer">
-        📂 Excel
-        <input type="file" id="importExcel" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
-      </label>
-      <div style="width:1px;height:24px;background:var(--border);margin:0 2px"></div>
-      <span class="io-label">BACKUP:</span>
-      <button class="btn btn-green btn-sm" onclick="saveLocally()">💾 Save to Device</button>
-      <label class="btn btn-outline btn-sm" style="cursor:pointer">
-        📁 Load Backup
-        <input type="file" accept=".json" style="display:none" onchange="loadFromBackup(event)">
-      </label>
-      <button class="btn btn-blue btn-sm" onclick="shareCollection()">📤 Share</button>
+      <div class="io-group">
+        <button class="btn btn-outline btn-sm" onclick="exportExcel()">📊 Export Excel</button>
+        <button class="btn btn-outline btn-sm" onclick="exportPDF()">📄 Export PDF</button>
+        <label class="btn btn-outline btn-sm" style="cursor:pointer">
+          📂 Import Excel
+          <input type="file" id="importExcel" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
+        </label>
+      </div>
+      <div class="io-group">
+        <button class="btn btn-green btn-sm" onclick="saveLocally()">💾 Backup</button>
+        <button class="btn btn-blue btn-sm" onclick="shareCollection()">📤 Share</button>
+      </div>
     </div>
   </div>
 </div>
@@ -869,6 +865,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       </div>
       <div><label>Icon (emoji)</label><input type="text" id="cIcon" placeholder="🗂" style="text-align:center;font-size:18px"></div>
     </div>
+    <div class="field-row"><label>Or pick an icon</label><div class="icon-picker" id="cIconPicker"></div></div>
     <div class="field-row"><label>Description</label><textarea id="cDesc" style="min-height:65px" placeholder="Optional description…"></textarea></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('collectionModal')">Cancel</button>
@@ -897,6 +894,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       </div>
       <div><label>Icon (emoji)</label><input type="text" id="gIcon" placeholder="📂" style="text-align:center;font-size:18px"></div>
     </div>
+    <div class="field-row"><label>Or pick an icon</label><div class="icon-picker" id="gIconPicker"></div></div>
     <div class="field-row"><label>Description</label><textarea id="gDesc" style="min-height:65px" placeholder="Optional description…"></textarea></div>
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('groupModal')">Cancel</button>
@@ -2959,6 +2957,23 @@ function applyMobileLayout(){
 }
 window.addEventListener('resize', applyMobileLayout);
 window.addEventListener('DOMContentLoaded', applyMobileLayout);
+
+// ── Icon picker for collections & groups ──
+const ICON_CHOICES = ['🪙','💰','💎','🏆','🥇','🎖️','🏅','👑','💍','⌚','⛏️','🚂','🚆','✈️','🚗','🏎️','🚜','🚢','⚓','🛞','📮','✉️','📯','🎫','📷','🎸','🎺','🎻','🥁','🎹','🗡️','⚔️','🛡️','🔫','🪖','🏺','⚱️','🖼️','🎨','🧸','🎲','♟️','🃏','🪆','🧩','🐚','🦴','🪨','🦋','🐉','🦕','⭐','🌟','🪐','🔮','🧿','📚','📖','🗿','🕰️','🍷','🪕','⚽','🏀','🎮','📀','💿','📦','📁','🗂️','🏷️'];
+function setIcon(id, emoji){
+  const inp=document.getElementById(id); if(!inp) return;
+  inp.value=emoji;
+  const wrap=document.getElementById(id+'Picker');
+  if(wrap){ wrap.querySelectorAll('.icon-pick').forEach(b=>b.classList.toggle('sel', b.dataset.e===emoji)); }
+}
+function buildIconPicker(targetId){
+  return ICON_CHOICES.map(e=>`<button type="button" class="icon-pick" data-e="${e}" onclick="setIcon('${targetId}','${e}')">${e}</button>`).join('');
+}
+function renderIconPickers(){
+  const c=document.getElementById('cIconPicker'); if(c&&!c.dataset.built){ c.innerHTML=buildIconPicker('cIcon'); c.dataset.built='1'; }
+  const g=document.getElementById('gIconPicker'); if(g&&!g.dataset.built){ g.innerHTML=buildIconPicker('gIcon'); g.dataset.built='1'; }
+}
+window.addEventListener('DOMContentLoaded', renderIconPickers);
 
 // selectGroup/selectCollection/selectAll already handle mobile drawer in their own functions
 function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
