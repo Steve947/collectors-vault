@@ -1491,7 +1491,7 @@ async function saveItem() {
       if (!p) continue;
       if (p.isNew && p.file) {
         // Compress image to max 800px wide, quality 0.7
-        const compressed = await compressImage(p.file, 800, 0.7);
+        const compressed = await compressImage(p.file, 800, 0.65);
         photoUrls.push(compressed);
       } else {
         photoUrls.push(p.url);
@@ -1529,6 +1529,14 @@ async function saveItem() {
       extraFields, catFieldVals,
       updatedAt: new Date().toISOString()
     };
+
+    // Guardrail: keep the record safely under Firestore's 1 MB limit
+    const approxBytes = new Blob([JSON.stringify(itemData)]).size;
+    if (approxBytes > 950000) {
+      btn.disabled = false; btn.innerHTML = '💾 Save Item';
+      showToast('Photos too large to save — remove one or use smaller images','⚠️');
+      return;
+    }
 
     const id = document.getElementById('editId').value;
     if (firebaseMode) {
@@ -1962,7 +1970,11 @@ function addExtraField(label='',value=''){
 // PHOTOS
 // ═══════════════════════════════════════════════════════════
 function handlePhotoUpload(e){
-  const files=Array.from(e.target.files);
+  const MAX_PHOTOS=6;
+  let files=Array.from(e.target.files);
+  const room=MAX_PHOTOS-editPhotoData.length;
+  if(room<=0){ showToast(`Maximum ${MAX_PHOTOS} photos per item`,'⚠️'); e.target.value=''; return; }
+  if(files.length>room){ showToast(`Only ${room} more photo(s) allowed (max ${MAX_PHOTOS})`,'⚠️'); files=files.slice(0,room); }
   files.forEach(file=>{
     const reader=new FileReader();
     reader.onload=ev=>{
