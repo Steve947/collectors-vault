@@ -462,6 +462,13 @@ header{border-top:2px solid transparent;border-image:linear-gradient(90deg,trans
 
 /* inputs: slightly stronger focus glow */
 input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16)!important}
+.toolbar-select{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:12px;padding:5px 8px;font-family:'IBM Plex Sans',sans-serif;cursor:pointer}
+.toolbar-select:hover{border-color:var(--gold)}
+.item-card.selecting{cursor:pointer}
+.item-card.selected{outline:2px solid var(--gold);outline-offset:-2px}
+.sel-check{position:absolute;top:8px;left:8px;z-index:3;width:24px;height:24px;border-radius:50%;background:rgba(20,18,12,.9);border:2px solid var(--gold);color:var(--gold2);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.item-card.selected .sel-check{background:var(--gold);color:#1a1200}
+.items-table tr.row-selected td{background:rgba(201,168,76,.14)!important}
 </style>
 </head>
 <body>
@@ -602,6 +609,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <span id="syncIndicator" title="Sync status"><span class="sync-dot" id="syncDot"></span><span id="syncLabel" style="font-size:11px;color:var(--text3)">Synced</span></span>
     <span class="cloud-badge" id="cloudBadge">☁ CLOUD</span>
     <span class="user-chip" id="userChip">👤 <span id="userName">—</span></span>
+    <button class="btn btn-outline btn-sm" onclick="showOnboarding()" title="How Hoardr works">?</button>
     <button class="btn btn-outline btn-sm" onclick="signOutUser()">Sign Out</button>
     <button class="btn btn-outline btn-sm" onclick="openCollectionModal()">＋ Collection</button>
     <button class="btn btn-outline btn-sm" onclick="openGroupModal()">＋ Group</button>
@@ -652,6 +660,17 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <span id="itemCount" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3)">0 items</span>
       <div class="spacer"></div>
       <button class="btn btn-outline btn-sm" onclick="showCollectionSummary()" title="View value totals">📊 Summary</button>
+      <select id="sortSelect" onchange="setSort(this.value)" title="Sort items" class="toolbar-select">
+        <option value="">Sort: Name (A–Z)</option>
+        <option value="name|-1">Name (Z–A)</option>
+        <option value="value|-1">Value (high→low)</option>
+        <option value="value|1">Value (low→high)</option>
+        <option value="obtainedDate|-1">Date (newest)</option>
+        <option value="obtainedDate|1">Date (oldest)</option>
+        <option value="condition|1">Condition</option>
+        <option value="category|1">Category</option>
+      </select>
+      <button class="btn btn-outline btn-sm" id="selectBtn" onclick="toggleSelectMode()" title="Select multiple items">☑ Select</button>
       <div class="view-toggle">
         <button class="view-btn active" id="viewGrid" onclick="setView('grid')" title="Grid">⊞</button>
         <button class="view-btn" id="viewList" onclick="setView('list')" title="List">☰</button>
@@ -683,6 +702,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
           <tbody id="tableBody"></tbody>
         </table>
       </div>
+      <div id="loadMoreWrap" style="display:none;text-align:center;padding:16px"><span style="font-size:12px;color:var(--text3);display:block;margin-bottom:8px"></span><button class="btn btn-outline btn-sm" onclick="loadMore()">Load more ↓</button></div>
     </div>
     <div class="io-strip">
       <div class="io-group">
@@ -915,6 +935,28 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
 <!-- TOAST -->
 <div class="toast" id="toast"><span id="toastIcon">✓</span><span id="toastMsg">Saved</span><button id="toastAction" onclick="toastActionClick()" style="display:none;background:var(--gold);color:#1a1200;border:none;border-radius:5px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px">Undo</button></div>
 
+<div id="bulkBar" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:140;background:var(--surface2);border:1px solid var(--gold);border-radius:12px;padding:9px 14px;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(0,0,0,.6)">
+  <span id="bulkCount" style="font-size:13px;color:var(--text2);font-weight:600">0 selected</span>
+  <button class="btn btn-outline btn-sm" onclick="bulkMove()">Move to group</button>
+  <button class="btn btn-danger btn-sm" onclick="bulkDelete()">🗑 Delete</button>
+  <button class="btn btn-outline btn-sm" onclick="clearSelection()">Clear</button>
+</div>
+
+<div class="modal-overlay" id="onboardModal" onclick="closeIfBg(event,'onboardModal')">
+  <div class="modal-box" onclick="event.stopPropagation()" style="max-width:440px">
+    <div style="text-align:center"><div style="width:60px;height:60px;margin:0 auto 10px;border-radius:14px;background:radial-gradient(circle at 50% 38%,#241f14,#0c0a06);border:1px solid #7a5a1e;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:900;font-size:30px;color:var(--gold2)">H</div></div>
+    <div class="modal-title" style="text-align:center;display:block">Welcome to Hoardr</div>
+    <p style="color:var(--text2);font-size:13px;text-align:center;margin:8px 0 16px">Your collection is organised in three simple levels:</p>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px">
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">🗂</span> &nbsp;<b style="color:var(--gold2)">Collections</b> <span style="color:var(--text3);font-size:12px">— the big buckets, e.g. "Belt Buckles".</span></div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">📂</span> &nbsp;<b style="color:var(--gold2)">Groups</b> <span style="color:var(--text3);font-size:12px">— sections inside a collection, e.g. "Western Buckles".</span></div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">📦</span> &nbsp;<b style="color:var(--gold2)">Items</b> <span style="color:var(--text3);font-size:12px">— each piece, with photos, value, condition & notes.</span></div>
+    </div>
+    <p style="color:var(--text3);font-size:12px;text-align:center;margin:12px 0">Start with <b>＋ Collection</b>, add Groups, then Items. Reach this guide again from the <b>?</b> button up top.</p>
+    <button class="btn btn-gold" style="width:100%;justify-content:center" onclick="closeOnboarding(true)">Get started →</button>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════════════
 // STATE
@@ -929,6 +971,7 @@ let selectedItemId = null;
 let filterCat = 'all';
 let searchTerm = '';
 let sortKey = null, sortDir = 1;
+let selectMode = false; let selectedIds = new Set(); let renderLimit = 80; const RENDER_CHUNK = 80; let _lastSig = '';
 let editPhotoData = [];   // { url: string, isNew: bool, file?: File }
 let currentUser = null;
 let firebaseMode = false;
@@ -1079,6 +1122,7 @@ function setupAuthListener() {
       document.getElementById('authScreen').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
       startRealtimeSync();
+      setTimeout(maybeShowOnboarding, 600);
     } else {
       currentUser = null;
       document.getElementById('authScreen').style.display = 'flex';
@@ -1685,19 +1729,29 @@ function renderContent() {
   else if (selectedCollectionId) title=(db.collections.find(c=>c.id===selectedCollectionId)||{}).name||'Collection';
   else if (filterCat!=='all') title=filterCat+'s';
   document.getElementById('viewTitle').textContent=title;
-  document.getElementById('itemCount').textContent=`${items.length} item${items.length!==1?'s':''}`;
+  const sig=[selectedGroupId,selectedCollectionId,filterCat,searchTerm,sortKey,sortDir].join('|');
+  if(sig!==_lastSig){ renderLimit=RENDER_CHUNK; _lastSig=sig; }
+  const all=items;
+  document.getElementById('itemCount').textContent=`${all.length} item${all.length!==1?'s':''}`;
   const empty=document.getElementById('emptyState');
   const grid=document.getElementById('itemsGrid');
   const tbl=document.getElementById('itemsTableWrap');
-  if(!items.length){empty.style.display='block';grid.style.display='none';tbl.style.display='none';return;}
+  const more=document.getElementById('loadMoreWrap');
+  if(!all.length){empty.style.display='block';grid.style.display='none';tbl.style.display='none';if(more)more.style.display='none';updateBulkBar();return;}
   empty.style.display='none';
+  const shown=all.slice(0, renderLimit);
   if(currentView==='grid'){
     grid.style.display='grid'; tbl.style.display='none';
-    grid.innerHTML=items.map(item=>renderCard(item)).join('');
+    grid.innerHTML=shown.map(item=>renderCard(item)).join('');
   } else {
     grid.style.display='none'; tbl.style.display='block';
-    document.getElementById('tableBody').innerHTML=items.map(item=>renderTableRow(item)).join('');
+    document.getElementById('tableBody').innerHTML=shown.map(item=>renderTableRow(item)).join('');
   }
+  if(more){
+    if(all.length>renderLimit){ more.style.display='block'; more.querySelector('span').textContent=`Showing ${shown.length} of ${all.length}`; }
+    else more.style.display='none';
+  }
+  updateBulkBar();
 }
 
 function renderCard(item) {
@@ -1707,7 +1761,9 @@ function renderCard(item) {
   const groupName=grp?grp.name:'';
   const collectionName=grp&&grp.collectionId?(db.collections.find(c=>c.id===grp.collectionId)||{}).name||'':'';
   const idx=db.items.findIndex(i=>i.id===item.id)+1;
-  return`<div class="item-card" onclick="viewItem('${item.id}')">
+  const _sel=selectedIds.has(item.id);
+  return`<div class="item-card${selectMode?' selecting':''}${_sel?' selected':''}" onclick="cardClick('${item.id}')">
+    ${selectMode?`<div class="sel-check">${_sel?'✓':''}</div>`:''}
     ${thumbHtml}
     <div class="item-card-actions">
       <button class="card-action-btn card-edit-btn" onclick="event.stopPropagation();openEditItem('${item.id}')" title="Edit">✏</button>
@@ -1733,7 +1789,7 @@ function renderTableRow(item) {
   const grpR=item.groupId?db.groups.find(g=>g.id===item.groupId):null;
   const groupName=grpR?grpR.name:'—';
   const collNameR=grpR&&grpR.collectionId?(db.collections.find(c=>c.id===grpR.collectionId)||{}).name||'':'';
-  return`<tr onclick="viewItem('${item.id}')">
+  return`<tr class="${selectedIds.has(item.id)?'row-selected':''}" onclick="cardClick('${item.id}')">
     <td>${thumbHtml}</td>
     <td class="td-name">${escH(item.name)}</td>
     <td>${item.category||'—'}</td>
@@ -1965,6 +2021,68 @@ function filterByCat(cat){
 function filterItems(){searchTerm=document.getElementById('searchInput').value;render();}
 function sortBy(key){if(sortKey===key)sortDir*=-1;else{sortKey=key;sortDir=1;}render();}
 function setView(v){currentView=v;document.getElementById('viewGrid').classList.toggle('active',v==='grid');document.getElementById('viewList').classList.toggle('active',v==='list');render();}
+function setSort(v){ if(!v){sortKey=null;sortDir=1;} else { const p=v.split('|'); sortKey=p[0]; sortDir=parseInt(p[1])||1; } renderContent(); }
+function loadMore(){ renderLimit+=RENDER_CHUNK; renderContent(); }
+function cardClick(id){ if(selectMode) toggleItemSelect(id); else viewItem(id); }
+function toggleItemSelect(id){ if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id); renderContent(); }
+function toggleSelectMode(){
+  selectMode=!selectMode; if(!selectMode) selectedIds.clear();
+  const b=document.getElementById('selectBtn');
+  if(b){ b.textContent=selectMode?'✕ Cancel':'☑ Select'; b.classList.toggle('btn-gold',selectMode); b.classList.toggle('btn-outline',!selectMode); }
+  renderContent();
+}
+function clearSelection(){ selectedIds.clear(); renderContent(); }
+function updateBulkBar(){
+  const bar=document.getElementById('bulkBar'); if(!bar) return;
+  if(selectMode && selectedIds.size>0){ bar.style.display='flex'; document.getElementById('bulkCount').textContent=selectedIds.size+' selected'; }
+  else bar.style.display='none';
+}
+async function bulkDelete(){
+  const ids=[...selectedIds]; if(!ids.length) return;
+  if(!confirm(`Delete ${ids.length} selected item(s)?`)) return;
+  const removed=db.items.filter(i=>ids.includes(i.id)).map(i=>JSON.parse(JSON.stringify(i)));
+  if(firebaseMode){
+    setSyncStatus('syncing');
+    const batch=firestoreDb.batch();
+    ids.forEach(id=>batch.delete(firestoreDb.doc(`${userPath()}/items/${id}`)));
+    await batch.commit(); setSyncStatus('synced');
+  } else { db.items=db.items.filter(i=>!ids.includes(i.id)); saveLocal(); render(); }
+  selectedIds.clear();
+  showToast(`${ids.length} item(s) deleted`,'🗑','Undo',()=>bulkRestore(removed));
+}
+async function bulkRestore(items){
+  if(firebaseMode){
+    setSyncStatus('syncing');
+    const batch=firestoreDb.batch();
+    items.forEach(it=>batch.set(firestoreDb.doc(`${userPath()}/items/${it.id}`), it));
+    await batch.commit(); setSyncStatus('synced');
+  } else { items.forEach(it=>db.items.push(it)); saveLocal(); render(); }
+  showToast(`${items.length} item(s) restored`,'↩');
+}
+function bulkMove(){
+  const ids=[...selectedIds]; if(!ids.length) return;
+  const groups=alphaSort(db.groups);
+  if(!groups.length){ showToast('Create a group first','⚠️'); return; }
+  const list=groups.map((g,i)=>`${i+1}. ${g.name}`).join('\n');
+  const choice=prompt(`Move ${ids.length} item(s) to which group?\n\n${list}\n\nType the number:`);
+  if(choice===null) return;
+  const idx=parseInt(choice)-1;
+  if(isNaN(idx)||idx<0||idx>=groups.length){ showToast('Invalid choice','⚠️'); return; }
+  doBulkMove(ids, groups[idx].id);
+}
+async function doBulkMove(ids, gid){
+  if(firebaseMode){
+    setSyncStatus('syncing');
+    const batch=firestoreDb.batch();
+    ids.forEach(id=>batch.update(firestoreDb.doc(`${userPath()}/items/${id}`),{groupId:gid}));
+    await batch.commit(); setSyncStatus('synced');
+  } else { db.items.forEach(i=>{ if(ids.includes(i.id)) i.groupId=gid; }); saveLocal(); render(); }
+  selectedIds.clear();
+  showToast(`Moved ${ids.length} item(s)`,'✓');
+}
+function showOnboarding(){ const m=document.getElementById('onboardModal'); if(m) m.classList.add('open'); }
+function closeOnboarding(markSeen){ const m=document.getElementById('onboardModal'); if(m) m.classList.remove('open'); if(markSeen){ try{localStorage.setItem('hoardr_onboarded','1');}catch(e){} } }
+function maybeShowOnboarding(){ try{ if(!localStorage.getItem('hoardr_onboarded')) showOnboarding(); }catch(e){} }
 
 // ═══════════════════════════════════════════════════════════
 // IMPORT / EXPORT
