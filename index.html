@@ -870,6 +870,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <div style="display:flex;gap:6px">
         <button class="btn btn-outline btn-sm" id="editFromViewBtn">✏️ Edit</button>
         <button class="btn btn-blue btn-sm" id="dupFromViewBtn">⧉ Duplicate</button>
+        <button class="btn btn-outline btn-sm" onclick="checkSoldPrices()" title="Check recent eBay sold prices (Pro)">💲 Sold prices</button>
         <button class="btn btn-outline btn-sm" onclick="closePanel('viewOverlay')">✕</button>
       </div>
     </div>
@@ -990,6 +991,18 @@ let filterCat = 'all';
 let searchTerm = '';
 let sortKey = null, sortDir = 1;
 let selectMode = false; let selectedIds = new Set(); let renderLimit = 80; const RENDER_CHUNK = 80; let _lastSig = '';
+// ── Pro / entitlement (billing not live yet; manual grants via PRO_EMAILS, replaced by real billing later) ──
+let isProUser = false;
+const PRO_EMAILS = ['sginn2@gmail.com']; // TODO: add your dad's account email here to grant lifetime Pro
+const FREE_MAX_ITEMS = 250, FREE_MAX_COLLECTIONS = 5, FREE_MAX_PHOTOS = 3, PRO_MAX_PHOTOS = 6;
+function isPro(){ return isProUser; }
+function maxPhotos(){ return isPro() ? PRO_MAX_PHOTOS : FREE_MAX_PHOTOS; }
+function checkSoldPrices(){
+  if(!isPro()){ showToast('Check sold prices is a Pro feature — coming soon','🔒'); return; }
+  const item=db.items.find(i=>i.id===selectedItemId);
+  if(!item||!item.name){ showToast('Open an item first','⚠️'); return; }
+  window.open('https://www.ebay.com/sch/i.html?_nkw='+encodeURIComponent(item.name)+'&LH_Sold=1&LH_Complete=1','_blank');
+}
 let editPhotoData = [];   // { url: string, isNew: bool, file?: File }
 let currentUser = null;
 let firebaseMode = false;
@@ -1139,6 +1152,7 @@ function setupAuthListener() {
   auth.onAuthStateChanged(user => {
     if (user) {
       currentUser = user;
+      isProUser = PRO_EMAILS.includes((user.email||'').toLowerCase());
       document.getElementById('userName').textContent = user.displayName || user.email.split('@')[0];
       document.title = 'Hoardr — My Collection';
       document.getElementById('authScreen').style.display = 'none';
@@ -1309,6 +1323,9 @@ async function saveCollection() {
   const name = document.getElementById('cName').value.trim();
   if (!name) { showToast('Please enter a collection name','⚠️'); return; }
   const id = document.getElementById('editCollectionId').value;
+  if (!id && !isPro() && db.collections.length >= FREE_MAX_COLLECTIONS) {
+    showToast(`Free plan is limited to ${FREE_MAX_COLLECTIONS} collections — Pro (coming soon) unlocks unlimited`,'🔒'); return;
+  }
   const data = {
     name, category: document.getElementById('cCategory').value,
     icon: document.getElementById('cIcon').value,
@@ -1503,6 +1520,9 @@ function compressImage(file, maxWidth, quality) {
 async function saveItem() {
   const name = document.getElementById('fName').value.trim();
   if (!name) { showToast('Item name is required','⚠️'); return; }
+  if (!document.getElementById('editId').value && !isPro() && db.items.length >= FREE_MAX_ITEMS) {
+    showToast(`Free plan is limited to ${FREE_MAX_ITEMS} items — Pro (coming soon) unlocks unlimited`,'🔒'); return;
+  }
   const btn = document.getElementById('saveItemBtn');
   btn.disabled = true; btn.innerHTML = '<span class="loading-spinner"></span> Saving…';
 
@@ -1992,10 +2012,10 @@ function addExtraField(label='',value=''){
 // PHOTOS
 // ═══════════════════════════════════════════════════════════
 function handlePhotoUpload(e){
-  const MAX_PHOTOS=6;
+  const MAX_PHOTOS=maxPhotos();
   let files=Array.from(e.target.files);
   const room=MAX_PHOTOS-editPhotoData.length;
-  if(room<=0){ showToast(`Maximum ${MAX_PHOTOS} photos per item`,'⚠️'); e.target.value=''; return; }
+  if(room<=0){ showToast(isPro()?`Maximum ${MAX_PHOTOS} photos per item`:`Free plan allows ${MAX_PHOTOS} photos/item — Pro (coming soon) unlocks 6`,'🔒'); e.target.value=''; return; }
   if(files.length>room){ showToast(`Only ${room} more photo(s) allowed (max ${MAX_PHOTOS})`,'⚠️'); files=files.slice(0,room); }
   files.forEach(file=>{
     const reader=new FileReader();
@@ -2250,6 +2270,7 @@ function compressForExcel(base64){
 function _xc(v){return (typeof v==='string'&&v.length>32767)?v.slice(0,32760)+'…':v;}
 function _aoa(rows){return XLSX.utils.aoa_to_sheet(rows.map(r=>r.map(_xc)));}
 async function exportExcel(){
+  if(!isPro()){ showToast('Excel export is a Pro feature — coming soon','🔒'); return; }
   if(!db.items.length && !db.collections.length){showToast('Nothing to export','⚠️');return;}
   showToast('Building Excel — please wait…','⏳');
   await new Promise(r=>setTimeout(r,60));
@@ -2393,6 +2414,7 @@ async function exportExcel(){
 // Restores photos from base64 column if present
 // ─────────────────────────────────────────────────────────────
 async function importExcel(e){
+  if(!isPro()){ showToast('Excel import is a Pro feature — coming soon','🔒'); e.target.value=''; return; }
   const file=e.target.files[0]; if(!file)return;
   showToast('Importing…','⏳');
   const reader=new FileReader();
@@ -2629,7 +2651,8 @@ async function importExcel(e){
 // ─────────────────────────────────────────────────────────────
 async function exportPDF(){
   if(!db.items.length){showToast('No items to export','⚠️');return;}
-  showToast('Building PDF with photos… please wait','⏳');
+  const inclPhotos = isPro();
+  showToast(inclPhotos?'Building PDF with photos… please wait':'Building PDF…','⏳');
   await new Promise(r=>setTimeout(r,60));
 
   const{jsPDF}=window.jspdf;
@@ -2738,7 +2761,7 @@ async function exportPDF(){
       let startY=22;
 
       for(const item of gItems){
-        const photos=(item.photos||[]).filter(p=>p);
+        const photos=inclPhotos?(item.photos||[]).filter(p=>p):[];
         const nPhotos=photos.length;
 
         // Calculate row height: text block + photo strip if photos exist
