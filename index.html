@@ -993,7 +993,7 @@ let sortKey = null, sortDir = 1;
 let selectMode = false; let selectedIds = new Set(); let renderLimit = 80; const RENDER_CHUNK = 80; let _lastSig = '';
 // ── Pro / entitlement (billing not live yet; manual grants via PRO_EMAILS, replaced by real billing later) ──
 let isProUser = false;
-const PRO_EMAILS = ['sginn2@gmail.com']; // TODO: add your dad's account email here to grant lifetime Pro
+const PRO_EMAILS = ['sginn2@gmail.com', 'dbginn@bigpond.com']; // manual Pro grants until billing is live
 const FREE_MAX_ITEMS = 250, FREE_MAX_COLLECTIONS = 5, FREE_MAX_PHOTOS = 3, PRO_MAX_PHOTOS = 6;
 function isPro(){ return isProUser; }
 function maxPhotos(){ return isPro() ? PRO_MAX_PHOTOS : FREE_MAX_PHOTOS; }
