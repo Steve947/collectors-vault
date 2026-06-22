@@ -30,6 +30,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
 
 <style>
 :root {
@@ -1025,6 +1026,7 @@ function initFirebase() {
   };
   try {
     if (!firebase.apps.length) firebase.initializeApp(config);
+    try { firebase.appCheck().activate('6LeYsCwtAAAAAKXamnx3oouUurG0I1AS_VzabMSL', true); } catch(e){ console.warn('App Check init failed (non-fatal):', e); }
     firestoreDb = firebase.firestore();
     auth = firebase.auth();
     storage = firebase.storage();
