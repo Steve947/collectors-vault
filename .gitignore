@@ -1,0 +1,20 @@
+# ─────────────────────────────────────────────────────────────
+# Publish-list: git ignores EVERYTHING by default, then re-includes
+# only the real live-app files below. This means deploy.bat can
+# never accidentally publish the planning docs, the aiAssist draft,
+# backups, or other local-only files.
+# To publish a NEW file later, add a matching "!/filename" line.
+# ─────────────────────────────────────────────────────────────
+/*
+
+!/.gitignore
+!/index.html
+!/manifest.json
+!/CNAME
+!/README.md
+!/sw.js
+!/icon-32.png
+!/icon-180.png
+!/icon-192.png
+!/icon-512.png
+!/icon-maskable-512.png
