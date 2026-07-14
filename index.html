@@ -552,7 +552,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <span class="bnav-icon">🗂</span>
       <span>Collections</span>
     </button>
-    <button class="bnav-btn add-btn" id="bnavAdd" onclick="openAddItem()">
+    <button class="bnav-btn add-btn" id="bnavAdd" onclick="openAddMenu()">
       <div class="bnav-icon-wrap">＋</div>
     </button>
     <button class="bnav-btn" id="bnavSearch" onclick="focusSearch()">
@@ -564,6 +564,13 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <span>More</span>
     </button>
   </div>
+</div>
+
+<!-- Quick Add menu (from central + button) -->
+<div id="addMenu" style="display:none;position:fixed;bottom:76px;left:50%;transform:translateX(-50%);z-index:140;background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:8px;box-shadow:0 -6px 24px rgba(0,0,0,.55);min-width:210px">
+  <button class="btn btn-gold" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="closeAddMenu();openAddItem()">＋ New Item</button>
+  <button class="btn btn-outline" style="width:100%;justify-content:flex-start;margin-bottom:6px" onclick="closeAddMenu();openGroupModal()">＋ New Group</button>
+  <button class="btn btn-outline" style="width:100%;justify-content:flex-start" onclick="closeAddMenu();openCollectionModal()">＋ New Collection</button>
 </div>
 
 <!-- Mobile More Menu -->
@@ -645,13 +652,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     </div>
     <div class="sidebar-section" style="padding:10px 6px">
       <div class="sidebar-label" style="padding-left:4px;margin-bottom:6px">Filter by Category</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;padding:0 4px">
-        <button class="tag" onclick="filterByCat('all')" id="catAll" style="border-color:var(--gold);color:var(--gold2)">All</button>
-        <button class="tag" onclick="filterByCat('Belt Buckle')" id="catBelt">🪙 Buckles</button>
-        <button class="tag" onclick="filterByCat('Stamp')" id="catStamp">📮 Stamps</button>
-        <button class="tag" onclick="filterByCat('Diecast')" id="catDiecast">⛏ Diecast</button>
-        <button class="tag" onclick="filterByCat('Other')" id="catOther">📁 Other</button>
-      </div>
+      <div id="catChips" style="display:flex;flex-wrap:wrap;gap:5px;padding:0 4px"></div>
     </div>
   </div>
 
@@ -751,14 +752,16 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
         <div class="field-row"><label>Item Name *</label><input type="text" id="fName" placeholder="e.g. 1950s Rodeo Belt Buckle" oninput="autoFillShortDesc()"></div>
         <div class="field-row-2">
           <div><label>Category *</label>
-            <select id="fCategory" onchange="updateCatFields()">
+            <select id="fCategory" onchange="onCategoryChange()">
               <option value="">— Select —</option>
               <option value="Belt Buckle">🪙 Belt Buckle</option>
               <option value="Stamp">📮 Stamp</option>
               <option value="Diecast">⛏ Diecast Mining Vehicle</option>
               <option value="Locomotive">🚂 Locomotive / Train</option>
               <option value="Other">📁 Other</option>
+              <option value="__custom__">➕ Add custom…</option>
             </select>
+            <input type="text" id="fCategoryCustom" placeholder="Name your category" style="display:none;margin-top:6px">
           </div>
           <div><label>Group / Collection</label>
             <select id="fGroup"><option value="">— None —</option></select>
@@ -772,8 +775,8 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
             </select>
           </div>
           <div><label>Material</label>
-            <select id="fMaterial">
-              <option value="">— Select or type below —</option>
+            <select id="fMaterial" onchange="onMaterialChange()">
+              <option value="">— Select —</option>
               <option value="Pewter">Pewter</option>
               <option value="Brass">Brass</option>
               <option value="Steel">Steel</option>
@@ -785,11 +788,15 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
               <option value="Diecast">Diecast</option>
               <option value="Paper">Paper</option>
               <option value="China">China</option>
+              <option value="Earthenware">Earthenware</option>
+              <option value="Stoneware">Stoneware</option>
+              <option value="Porcelain">Porcelain</option>
               <option value="Copper">Copper</option>
               <option value="Bronze">Bronze</option>
               <option value="Aluminium">Aluminium</option>
-              <option value="Other">Other</option>
+              <option value="__custom__">➕ Add custom…</option>
             </select>
+            <input type="text" id="fMaterialCustom" placeholder="Type a custom material" style="display:none;margin-top:6px">
           </div>
         </div>
         <div class="field-row-2">
@@ -802,6 +809,16 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
             </div>
             <input type="hidden" id="fRating" value="0">
           </div>
+        </div>
+        <div class="field-row-2">
+          <div><label>Height</label><input type="number" id="fHeight" placeholder="0" step="0.1" min="0"></div>
+          <div><label>Width</label><input type="number" id="fWidth" placeholder="0" step="0.1" min="0"></div>
+        </div>
+        <div class="field-row-2">
+          <div><label>Measurement Unit</label>
+            <select id="fDimUnit"><option value="mm">mm</option><option value="cm">cm</option></select>
+          </div>
+          <div></div>
         </div>
         <div id="catSpecificFields"></div>
       </div>
@@ -1086,7 +1103,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Register service worker for PWA / offline support
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/collectors-vault/sw.js')
+    navigator.serviceWorker.register('sw.js')
       .then(reg => console.log('Hoardr SW registered:', reg.scope))
       .catch(err => console.log('SW registration failed:', err));
   }
@@ -1485,10 +1502,14 @@ function openEditItem(id) {
   document.getElementById('editId').value = id;
   const fields = ['Name','Material','ObtainedDate','ObtainedFrom','PurchasePrice','Seller','Provenance','CertRef','Insurance','ShortDesc','Notes','History','Tags'];
   fields.forEach(f => { const el = document.getElementById('f'+f); if(el) el.value = item[f.charAt(0).toLowerCase()+f.slice(1)]||''; });
-  document.getElementById('fCategory').value = item.category||'';
+  setCategoryField(item.category||'');
   document.getElementById('fCondition').value = item.condition||'';
   document.getElementById('fGroup').value = item.groupId||'';
   document.getElementById('fValue').value = item.value||'';
+  document.getElementById('fHeight').value = item.height||'';
+  document.getElementById('fWidth').value = item.width||'';
+  document.getElementById('fDimUnit').value = item.dimUnit||'mm';
+  setMaterialField(item.material||'');
   document.getElementById('fRating').value = item.rating||0;
   setRatingDisplay(item.rating||0);
   editPhotoData = (item.photos||[]).map(url=>({url, isNew:false}));
@@ -1552,11 +1573,14 @@ async function saveItem() {
     document.querySelectorAll('[data-catfield]').forEach(el=>{ catFieldVals[el.dataset.catfield]=el.value; });
 
     const itemData = {
-      name, category: document.getElementById('fCategory').value,
+      name, category: getCategoryValue(),
       groupId: document.getElementById('fGroup').value,
       condition: document.getElementById('fCondition').value,
-      material: document.getElementById('fMaterial').value,
+      material: getMaterialValue(),
       value: document.getElementById('fValue').value,
+      height: document.getElementById('fHeight').value,
+      width: document.getElementById('fWidth').value,
+      dimUnit: document.getElementById('fDimUnit').value,
       rating: parseInt(document.getElementById('fRating').value)||0,
       obtainedDate: document.getElementById('fObtainedDate').value,
       obtainedFrom: document.getElementById('fObtainedFrom').value,
@@ -1697,7 +1721,7 @@ function getFilteredItems() {
 }
 
 function render() {
-  updateStats(); renderSidebar(); renderContent();
+  updateStats(); renderSidebar(); renderCatChips(); renderContent();
 }
 function updateStats() {
   document.getElementById('statTotal').textContent=db.items.length;
@@ -1889,6 +1913,7 @@ function viewItem(id) {
     ${item.shortDesc?`<p style="font-size:14px;color:var(--text2);margin-bottom:14px;font-style:italic">${escH(item.shortDesc)}</p>`:''}
     <div class="detail-grid">
       ${item.material?`<div class="detail-field"><div class="detail-field-label">Material</div><div class="detail-field-value">${escH(item.material)}</div></div>`:''}
+      ${(item.height||item.width)?`<div class="detail-field"><div class="detail-field-label">Dimensions</div><div class="detail-field-value">${escH(dimStr(item))}</div></div>`:''}
       ${item.value?`<div class="detail-field"><div class="detail-field-label">Est. Value</div><div class="detail-field-value" style="color:var(--gold2)">$${parseFloat(item.value).toFixed(2)}</div></div>`:''}
       ${item.obtainedDate?`<div class="detail-field"><div class="detail-field-label">Date Obtained</div><div class="detail-field-value">${item.obtainedDate}</div></div>`:''}
       ${item.obtainedFrom?`<div class="detail-field"><div class="detail-field-label">Obtained From</div><div class="detail-field-value">${escH(item.obtainedFrom)}</div></div>`:''}
@@ -2068,11 +2093,30 @@ function selectGroup(id,e){
 }
 function filterByCat(cat){
   filterCat=cat;
-  document.querySelectorAll('.sidebar .tag').forEach(t=>{t.style.borderColor='';t.style.color='';});
-  const map={'all':'catAll','Belt Buckle':'catBelt','Stamp':'catStamp','Diecast':'catDiecast','Other':'catOther'};
-  const el=document.getElementById(map[cat]);
-  if(el){el.style.borderColor='var(--gold)';el.style.color='var(--gold2)';}
+  highlightCatChip();
   render();
+}
+function renderCatChips(){
+  const box=document.getElementById('catChips'); if(!box) return;
+  const BUILTIN=['Belt Buckle','Stamp','Diecast','Locomotive','Other'];
+  const META={'Belt Buckle':'🪙 Buckles','Stamp':'📮 Stamps','Diecast':'⛏ Diecast','Locomotive':'🚂 Trains','Other':'📁 Other'};
+  const used=new Set(db.items.map(i=>i.category).filter(Boolean));
+  const custom=[...used].filter(c=>!BUILTIN.includes(c)).sort();
+  const cats=BUILTIN.concat(custom);
+  let html=`<button class="tag" data-cat="all" onclick="filterByCat(this.dataset.cat)">All</button>`;
+  cats.forEach(c=>{
+    const label=META[c]||('🏷 '+c);
+    html+=`<button class="tag" data-cat="${escH(c)}" onclick="filterByCat(this.dataset.cat)">${escH(label)}</button>`;
+  });
+  box.innerHTML=html;
+  highlightCatChip();
+}
+function highlightCatChip(){
+  document.querySelectorAll('#catChips .tag').forEach(t=>{
+    const on=t.dataset.cat===filterCat;
+    t.style.borderColor=on?'var(--gold)':'';
+    t.style.color=on?'var(--gold2)':'';
+  });
 }
 function filterItems(){searchTerm=document.getElementById('searchInput').value;render();}
 function sortBy(key){if(sortKey===key)sortDir*=-1;else{sortKey=key;sortDir=1;}render();}
@@ -2305,7 +2349,7 @@ async function exportExcel(){
   XLSX.utils.book_append_sheet(wb,wsSummary,'Summary');
 
   // ── One sheet per Collection — clean item data, no raw base64 ──
-  const COL_HDR=['#','Item Name','Category','Group','Condition','Material',
+  const COL_HDR=['#','Item Name','Category','Group','Condition','Material','Dimensions',
     'Est. Value ($)','Purchase Price ($)','Date Obtained','Obtained From',
     'Seller','Provenance','Cert/Ref #','Short Description','Notes','History',
     'Tags','Rating','Insurance','Photos'];
@@ -2330,7 +2374,7 @@ async function exportExcel(){
         const photoCount=(item.photos||[]).filter(p=>p).length;
         sheetRows.push([
           seq,item.name||'',item.category||'',grp.name,
-          item.condition||'',item.material||'',
+          item.condition||'',item.material||'',dimStr(item),
           item.value?parseFloat(item.value):'',
           item.purchasePrice?parseFloat(item.purchasePrice):'',
           item.obtainedDate||'',item.obtainedFrom||'',
@@ -2344,7 +2388,7 @@ async function exportExcel(){
     });
 
     const wsCol=_aoa(sheetRows);
-    wsCol['!cols']=[{wch:5},{wch:34},{wch:16},{wch:22},{wch:12},{wch:18},
+    wsCol['!cols']=[{wch:5},{wch:34},{wch:16},{wch:22},{wch:12},{wch:18},{wch:16},
       {wch:12},{wch:14},{wch:14},{wch:18},{wch:18},{wch:20},{wch:14},
       {wch:28},{wch:40},{wch:40},{wch:24},{wch:8},{wch:24},{wch:22}];
     const safeName=(col.name||'Collection').split('').filter(c=>!':/\\?*[]'.includes(c)).join('').substring(0,28);
@@ -2352,7 +2396,7 @@ async function exportExcel(){
   }
 
   // ── All Items flat sheet ──────────────────────────────────────
-  const allHdr=['#','Collection','Group','Item Name','Category','Condition','Material',
+  const allHdr=['#','Collection','Group','Item Name','Category','Condition','Material','Dimensions',
     'Est. Value ($)','Purchase Price ($)','Date Obtained','Obtained From','Seller',
     'Provenance','Cert/Ref #','Short Description','Notes','History','Tags','Rating','Insurance','Photos'];
   const allRows=[allHdr];
@@ -2363,7 +2407,7 @@ async function exportExcel(){
         seq2++;
         const pc=(item.photos||[]).filter(p=>p).length;
         allRows.push([seq2,col.name,grp.name,item.name||'',item.category||'',
-          item.condition||'',item.material||'',
+          item.condition||'',item.material||'',dimStr(item),
           item.value?parseFloat(item.value):'',
           item.purchasePrice?parseFloat(item.purchasePrice):'',
           item.obtainedDate||'',item.obtainedFrom||'',item.seller||'',
@@ -2376,7 +2420,7 @@ async function exportExcel(){
     });
   });
   const wsAll=_aoa(allRows);
-  wsAll['!cols']=[{wch:5},{wch:24},{wch:22},{wch:34},{wch:16},{wch:12},{wch:18},
+  wsAll['!cols']=[{wch:5},{wch:24},{wch:22},{wch:34},{wch:16},{wch:12},{wch:18},{wch:16},
     {wch:12},{wch:14},{wch:14},{wch:18},{wch:18},{wch:20},{wch:14},
     {wch:28},{wch:40},{wch:40},{wch:24},{wch:8},{wch:24},{wch:22}];
   XLSX.utils.book_append_sheet(wb,wsAll,'All Items');
@@ -2612,9 +2656,11 @@ async function importExcel(e){
         const photos=_pendingPhotos[itemName]||[];
         _pendingPhotos[itemName]=[];
 
+        const _dim=parseImportDim(row.Dimensions);
         const itemData={
           name:itemName,category:row.Category||'',groupId,condition:row.Condition||'',
           material:row.Material||'',
+          height:_dim.height,width:_dim.width,dimUnit:_dim.dimUnit,
           value:(row['Est. Value ($)']||row['Est. Value']||'').toString(),
           purchasePrice:(row['Purchase Price ($)']||row['Purchase Price']||'').toString(),
           obtainedDate:(row['Date Obtained']||'').toString(),
@@ -2824,7 +2870,7 @@ async function exportPDF(){
 
         // Details: line 1
         doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(184,169,138);
-        const det1=[item.material&&'Material: '+item.material,item.obtainedDate&&'Obtained: '+item.obtainedDate,item.obtainedFrom&&'From: '+item.obtainedFrom].filter(Boolean).join('   ');
+        const det1=[item.material&&'Material: '+item.material,dimStr(item)&&'Size: '+dimStr(item),item.obtainedDate&&'Obtained: '+item.obtainedDate,item.obtainedFrom&&'From: '+item.obtainedFrom].filter(Boolean).join('   ');
         doc.text(det1.substring(0,95),tx,startY+16);
 
         // Details: line 2
@@ -3213,6 +3259,12 @@ document.addEventListener('click', e=>{
       menu.style.display = 'none';
     }
   }
+  const amenu = document.getElementById('addMenu');
+  if(amenu && amenu.style.display !== 'none'){
+    if(!amenu.contains(e.target) && !e.target.closest('#bnavAdd')){
+      amenu.style.display = 'none';
+    }
+  }
   // Drawer stays open until user taps the ✕ close button — no auto-close on outside tap
 });
 
@@ -3310,11 +3362,14 @@ function populateGroupSelect(){
   sel.value=cur;
 }
 function clearItemForm(){
-  ['fName','fMaterial','fValue','fObtainedDate','fObtainedFrom','fPurchasePrice','fSeller',
+  ['fName','fMaterial','fMaterialCustom','fValue','fHeight','fWidth','fObtainedDate','fObtainedFrom','fPurchasePrice','fSeller',
    'fProvenance','fCertRef','fInsurance','fShortDesc','fNotes','fHistory','fTags'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.value='';
   });
+  const _mc=document.getElementById('fMaterialCustom'); if(_mc)_mc.style.display='none';
+  const _du=document.getElementById('fDimUnit'); if(_du)_du.value='mm';
   document.getElementById('fCategory').value='';
+  const _cc=document.getElementById('fCategoryCustom'); if(_cc){_cc.value='';_cc.style.display='none';}
   document.getElementById('fCondition').value='';
   document.getElementById('fGroup').value='';
   document.getElementById('fRating').value=0;
@@ -3324,6 +3379,67 @@ function clearItemForm(){
   editPhotoData=[];renderPhotoGrid();
   document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
   document.querySelectorAll('.tab-content').forEach((c,i)=>c.classList.toggle('active',i===0));
+}
+function onMaterialChange(){
+  const sel=document.getElementById('fMaterial'); const box=document.getElementById('fMaterialCustom');
+  if(!sel||!box) return;
+  if(sel.value==='__custom__'){ box.style.display='block'; box.focus(); }
+  else { box.style.display='none'; box.value=''; }
+}
+function getMaterialValue(){
+  const sel=document.getElementById('fMaterial');
+  if(sel && sel.value==='__custom__'){ return (document.getElementById('fMaterialCustom').value||'').trim(); }
+  return sel?sel.value:'';
+}
+function setMaterialField(val){
+  const sel=document.getElementById('fMaterial'); const box=document.getElementById('fMaterialCustom');
+  if(!sel||!box) return;
+  const known=[...sel.options].some(o=>o.value===val && o.value!=='__custom__');
+  if(val && !known){ sel.value='__custom__'; box.style.display='block'; box.value=val; }
+  else { sel.value=val; box.style.display='none'; box.value=''; }
+}
+function dimStr(it){
+  const u=it.dimUnit||'mm'; const parts=[];
+  if(it.height) parts.push('H '+it.height+u);
+  if(it.width) parts.push('W '+it.width+u);
+  return parts.join(' × ');
+}
+function parseImportDim(str){
+  const out={height:'',width:'',dimUnit:'mm'};
+  if(!str) return out;
+  const s=String(str);
+  if(/cm/i.test(s)) out.dimUnit='cm'; else if(/mm/i.test(s)) out.dimUnit='mm';
+  const h=s.match(/H\s*([\d.]+)/i); if(h) out.height=h[1];
+  const w=s.match(/W\s*([\d.]+)/i); if(w) out.width=w[1];
+  return out;
+}
+function openAddMenu(){
+  const m=document.getElementById('addMenu'); if(!m) return;
+  const isOpen=m.style.display==='block';
+  const mm=document.getElementById('mobileMoreMenu'); if(mm) mm.style.display='none';
+  m.style.display=isOpen?'none':'block';
+  setActiveNav('bnavAdd');
+}
+function closeAddMenu(){ const m=document.getElementById('addMenu'); if(m) m.style.display='none'; }
+function onCategoryChange(){
+  const sel=document.getElementById('fCategory'); const box=document.getElementById('fCategoryCustom');
+  if(box){
+    if(sel.value==='__custom__'){ box.style.display='block'; box.focus(); }
+    else { box.style.display='none'; box.value=''; }
+  }
+  updateCatFields();
+}
+function getCategoryValue(){
+  const sel=document.getElementById('fCategory');
+  if(sel && sel.value==='__custom__'){ return (document.getElementById('fCategoryCustom').value||'').trim(); }
+  return sel?sel.value:'';
+}
+function setCategoryField(val){
+  const sel=document.getElementById('fCategory'); const box=document.getElementById('fCategoryCustom');
+  if(!sel) return;
+  const known=[...sel.options].some(o=>o.value===val && o.value!=='__custom__');
+  if(val && !known){ sel.value='__custom__'; if(box){box.style.display='block';box.value=val;} }
+  else { sel.value=val; if(box){box.style.display='none';box.value='';} }
 }
 
 // ═══════════════════════════════════════════════════════════
