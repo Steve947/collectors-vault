@@ -1045,6 +1045,14 @@ function initFirebase() {
     if (!firebase.apps.length) firebase.initializeApp(config);
     try { firebase.appCheck().activate('6LeYsCwtAAAAAKXamnx3oouUurG0I1AS_VzabMSL', true); } catch(e){ console.warn('App Check init failed (non-fatal):', e); }
     firestoreDb = firebase.firestore();
+    // ── Offline persistence: cache all data on-device (IndexedDB) so repeat
+    //    loads are near-instant and only CHANGED records sync from the server.
+    //    Big speed-up on cold desktop loads with large photo-heavy collections. ──
+    try { firestoreDb.settings({ cacheSizeBytes: firebase.firestore.CACHE_SIZE_UNLIMITED }); }
+    catch(e){ console.warn('Firestore cache-size setting failed (non-fatal):', e); }
+    firestoreDb.enablePersistence({ synchronizeTabs: true })
+      .then(() => console.log('Firestore offline cache enabled'))
+      .catch(err => console.warn('Firestore offline cache unavailable (non-fatal):', err && err.code));
     auth = firebase.auth();
     storage = firebase.storage();
     firebaseMode = true;
