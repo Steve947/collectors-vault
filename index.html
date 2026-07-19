@@ -805,7 +805,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
           </div>
         </div>
         <div class="field-row-2">
-          <div><label>Estimated Value ($)</label><input type="number" id="fValue" placeholder="0.00" step="0.01"></div>
+          <div><label id="lblValue">Estimated Value ($)</label><input type="number" id="fValue" placeholder="0.00" step="0.01"></div>
           <div><label>Rating (1–5)</label>
             <div class="rating-stars" id="ratingStars">
               <span class="star" onclick="setRating(1)">★</span><span class="star" onclick="setRating(2)">★</span>
@@ -834,7 +834,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
           <div><label>Obtained From</label><input type="text" id="fObtainedFrom" placeholder="e.g. Auction, Estate Sale"></div>
         </div>
         <div class="field-row-2">
-          <div><label>Purchase Price ($)</label><input type="number" id="fPurchasePrice" placeholder="0.00" step="0.01"></div>
+          <div><label id="lblPurchase">Purchase Price ($)</label><input type="number" id="fPurchasePrice" placeholder="0.00" step="0.01"></div>
           <div><label>Seller / Dealer</label><input type="text" id="fSeller" placeholder="Name or business"></div>
         </div>
         <div class="field-row"><label>Location / Provenance</label><input type="text" id="fProvenance" placeholder="Where is it from?"></div>
@@ -988,6 +988,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <div class="modal-title">My Profile</div>
     <div class="field-row"><label>Display Name</label><input type="text" id="pfName" placeholder="Your name"></div>
     <div class="field-row"><label>Email</label><input type="text" id="pfEmail" disabled style="opacity:.65;cursor:not-allowed"></div>
+    <div class="field-row"><label>Currency</label><select id="pfCurrency"></select></div>
     <div id="pfVerifyRow" style="font-size:12px;margin:-6px 0 14px"></div>
     <button class="btn btn-gold" style="width:100%;justify-content:center;margin-bottom:10px" onclick="saveProfile()">Save changes</button>
     <div id="pfPasswordRow"><button class="btn btn-outline" style="width:100%;justify-content:center" onclick="changePasswordEmail()">🔑 Send password reset email</button></div>
@@ -1019,6 +1020,55 @@ let isProUser = false;
 const PRO_EMAILS = ['sginn2@gmail.com', 'dbginn@bigpond.com']; // manual Pro grants until billing is live
 const FREE_MAX_ITEMS = 250, FREE_MAX_COLLECTIONS = 5, FREE_MAX_PHOTOS = 3, PRO_MAX_PHOTOS = 6;
 function isPro(){ return isProUser; }
+
+// ── Currency preference (stored per user in Firestore + mirrored to localStorage) ──
+const CURRENCIES=[
+  {code:'AUD',sym:'$',label:'AUD — Australian dollar'},
+  {code:'NZD',sym:'$',label:'NZD — New Zealand dollar'},
+  {code:'USD',sym:'$',label:'USD — US dollar'},
+  {code:'CAD',sym:'$',label:'CAD — Canadian dollar'},
+  {code:'GBP',sym:'£',label:'GBP — Pound sterling'},
+  {code:'EUR',sym:'€',label:'EUR — Euro'},
+  {code:'JPY',sym:'¥',label:'JPY — Japanese yen'},
+  {code:'CHF',sym:'CHF ',label:'CHF — Swiss franc'},
+  {code:'ZAR',sym:'R',label:'ZAR — South African rand'},
+  {code:'SGD',sym:'$',label:'SGD — Singapore dollar'},
+  {code:'HKD',sym:'$',label:'HKD — Hong Kong dollar'},
+  {code:'INR',sym:'₹',label:'INR — Indian rupee'}
+];
+function guessCurrency(){
+  const m={AU:'AUD',NZ:'NZD',US:'USD',CA:'CAD',GB:'GBP',IE:'EUR',DE:'EUR',FR:'EUR',ES:'EUR',IT:'EUR',NL:'EUR',BE:'EUR',AT:'EUR',JP:'JPY',CH:'CHF',ZA:'ZAR',SG:'SGD',HK:'HKD',IN:'INR'};
+  try{ const r=(navigator.language||'').split('-')[1]; if(r&&m[r]) return m[r]; }catch(e){}
+  return 'AUD';
+}
+let userCurrency=(function(){ try{ return localStorage.getItem('hoardrCurrency')||guessCurrency(); }catch(e){ return guessCurrency(); } })();
+function curCode(){ return userCurrency||'AUD'; }
+function curSym(){ const c=CURRENCIES.find(x=>x.code===curCode()); return c?c.sym:'$'; }
+function fmtMoney(n){ return curSym()+(Number(n)||0).toFixed(2); }
+function applyCurrencyLabels(){
+  const a=document.getElementById('lblValue'); if(a) a.textContent='Estimated Value ('+curSym()+')';
+  const b=document.getElementById('lblPurchase'); if(b) b.textContent='Purchase Price ('+curSym()+')';
+}
+function setCurrency(code,persist){
+  userCurrency=code||'AUD';
+  try{ localStorage.setItem('hoardrCurrency',userCurrency); }catch(e){}
+  applyCurrencyLabels();
+  if(persist && firebaseMode && currentUser){
+    firestoreDb.doc(`${userPath()}/settings/prefs`).set({currency:userCurrency},{merge:true})
+      .catch(e=>console.warn('Currency save failed:',e));
+  }
+  try{ render(); }catch(e){}
+}
+async function loadCurrencyPref(){
+  if(!(firebaseMode&&currentUser)){ applyCurrencyLabels(); return; }
+  try{
+    const d=await firestoreDb.doc(`${userPath()}/settings/prefs`).get();
+    const c=d.exists?d.get('currency'):null;
+    if(c){ userCurrency=c; try{ localStorage.setItem('hoardrCurrency',c); }catch(e){} }
+  }catch(e){ console.warn('Currency load failed:',e); }
+  applyCurrencyLabels();
+  try{ render(); }catch(e){}
+}
 function maxPhotos(){ return isPro() ? PRO_MAX_PHOTOS : FREE_MAX_PHOTOS; }
 function checkSoldPrices(){
   if(!isPro()){ showToast('Check sold prices is a Pro feature — coming soon','🔒'); return; }
@@ -1274,6 +1324,7 @@ function userPath() { return `users/${currentUser.uid}`; }
 
 function startRealtimeSync() {
   setSyncStatus('syncing');
+  loadCurrencyPref();
 
   unsubCollections = firestoreDb.collection(`${userPath()}/collections`)
     .orderBy('createdAt','asc')
@@ -1871,7 +1922,7 @@ function renderCard(item) {
         ${item.condition?`<span class="cond-badge cond-${item.condition}">${item.condition}</span>`:'<span></span>'}
         <span class="card-id">#${String(idx).padStart(4,'0')}</span>
       </div>
-      ${item.value?`<div style="font-size:12px;color:var(--gold2);margin-top:5px;font-family:'IBM Plex Mono',monospace">$${parseFloat(item.value).toFixed(2)}</div>`:''}
+      ${item.value?`<div style="font-size:12px;color:var(--gold2);margin-top:5px;font-family:'IBM Plex Mono',monospace">${fmtMoney(item.value)}</div>`:''}
     </div>
   </div>`;
 }
@@ -1891,7 +1942,7 @@ function renderTableRow(item) {
     <td>${escH(item.material||'—')}</td>
     <td>${item.obtainedDate||'—'}</td>
     <td>${escH(item.obtainedFrom||'—')}</td>
-    <td style="font-family:'IBM Plex Mono',monospace;color:var(--gold2)">${item.value?'$'+parseFloat(item.value).toFixed(2):'—'}</td>
+    <td style="font-family:'IBM Plex Mono',monospace;color:var(--gold2)">${item.value?fmtMoney(item.value):'—'}</td>
     <td>
       <button class="btn btn-outline btn-sm btn-icon" onclick="event.stopPropagation();openEditItem('${item.id}')" title="Edit">✏</button>
       <button class="btn btn-blue btn-sm btn-icon" onclick="event.stopPropagation();duplicateItem('${item.id}')" title="Duplicate">⧉</button>
@@ -1931,10 +1982,10 @@ function viewItem(id) {
     <div class="detail-grid">
       ${item.material?`<div class="detail-field"><div class="detail-field-label">Material</div><div class="detail-field-value">${escH(item.material)}</div></div>`:''}
       ${(item.height||item.width)?`<div class="detail-field"><div class="detail-field-label">Dimensions</div><div class="detail-field-value">${escH(dimStr(item))}</div></div>`:''}
-      ${item.value?`<div class="detail-field"><div class="detail-field-label">Est. Value</div><div class="detail-field-value" style="color:var(--gold2)">$${parseFloat(item.value).toFixed(2)}</div></div>`:''}
+      ${item.value?`<div class="detail-field"><div class="detail-field-label">Est. Value</div><div class="detail-field-value" style="color:var(--gold2)">${fmtMoney(item.value)}</div></div>`:''}
       ${item.obtainedDate?`<div class="detail-field"><div class="detail-field-label">Date Obtained</div><div class="detail-field-value">${item.obtainedDate}</div></div>`:''}
       ${item.obtainedFrom?`<div class="detail-field"><div class="detail-field-label">Obtained From</div><div class="detail-field-value">${escH(item.obtainedFrom)}</div></div>`:''}
-      ${item.purchasePrice?`<div class="detail-field"><div class="detail-field-label">Purchase Price</div><div class="detail-field-value">$${parseFloat(item.purchasePrice).toFixed(2)}</div></div>`:''}
+      ${item.purchasePrice?`<div class="detail-field"><div class="detail-field-label">Purchase Price</div><div class="detail-field-value">${fmtMoney(item.purchasePrice)}</div></div>`:''}
       ${item.seller?`<div class="detail-field"><div class="detail-field-label">Seller</div><div class="detail-field-value">${escH(item.seller)}</div></div>`:''}
       ${item.provenance?`<div class="detail-field"><div class="detail-field-label">Provenance</div><div class="detail-field-value">${escH(item.provenance)}</div></div>`:''}
       ${item.certRef?`<div class="detail-field"><div class="detail-field-label">Cert / Ref #</div><div class="detail-field-value">${escH(item.certRef)}</div></div>`:''}
@@ -2217,6 +2268,11 @@ function openProfile(){
   if(!currentUser){ showToast('Not signed in','⚠️'); return; }
   document.getElementById('pfName').value=currentUser.displayName||'';
   document.getElementById('pfEmail').value=currentUser.email||'';
+  const _cs=document.getElementById('pfCurrency');
+  if(_cs){
+    if(!_cs.options.length) _cs.innerHTML=CURRENCIES.map(c=>`<option value="${c.code}">${escH(c.label)}</option>`).join('');
+    _cs.value=curCode();
+  }
   const isGoogle=(currentUser.providerData||[]).some(pr=>pr&&pr.providerId==='google.com');
   document.getElementById('pfPasswordRow').style.display=isGoogle?'none':'block';
   const vr=document.getElementById('pfVerifyRow');
@@ -2227,6 +2283,7 @@ function openProfile(){
 async function saveProfile(){
   if(!currentUser) return;
   const name=document.getElementById('pfName').value.trim();
+  const _cs=document.getElementById('pfCurrency'); if(_cs) setCurrency(_cs.value,true);
   try{
     await currentUser.updateProfile({displayName:name});
     document.getElementById('userName').textContent=name||(currentUser.email||'').split('@')[0];
@@ -2332,6 +2389,7 @@ function compressForExcel(base64){
   });
 }
 
+function _pickCol(row,prefix){ const k=Object.keys(row).find(k=>k.indexOf(prefix)===0); return k?row[k]:''; }
 function _xc(v){return (typeof v==='string'&&v.length>32767)?v.slice(0,32760)+'…':v;}
 function _aoa(rows){return XLSX.utils.aoa_to_sheet(rows.map(r=>r.map(_xc)));}
 async function exportExcel(){
@@ -2355,11 +2413,11 @@ async function exportExcel(){
     const cGroups=db.groups.filter(g=>g.collectionId===col.id);
     const cItems=cGroups.reduce((a,g)=>a+db.items.filter(i=>i.groupId===g.id).length,0);
     const cVal=cGroups.reduce((a,g)=>a+db.items.filter(i=>i.groupId===g.id).reduce((b,i)=>b+parseFloat(i.value||0),0),0);
-    summaryRows.push([''+(col.icon||'○')+' '+col.name,col.category||'General',cGroups.length+' group(s)',cItems+' item(s)',cVal>0?'$'+cVal.toFixed(2):'']);
+    summaryRows.push([''+(col.icon||'○')+' '+col.name,col.category||'General',cGroups.length+' group(s)',cItems+' item(s)',cVal>0?fmtMoney(cVal):'']);
     cGroups.forEach(g=>{
       const gi=db.items.filter(i=>i.groupId===g.id);
       const gv=gi.reduce((a,i)=>a+parseFloat(i.value||0),0);
-      summaryRows.push(['   └─ '+(g.icon||'')+(g.icon?' ':'')+g.name,'','',gi.length+' item(s)',gv>0?'$'+gv.toFixed(2):'']);
+      summaryRows.push(['   └─ '+(g.icon||'')+(g.icon?' ':'')+g.name,'','',gi.length+' item(s)',gv>0?fmtMoney(gv):'']);
     });
     summaryRows.push(['','','','','']);
   });
@@ -2369,7 +2427,7 @@ async function exportExcel(){
 
   // ── One sheet per Collection — clean item data, no raw base64 ──
   const COL_HDR=['#','Item Name','Category','Group','Condition','Material','Dimensions',
-    'Est. Value ($)','Purchase Price ($)','Date Obtained','Obtained From',
+    'Est. Value ('+curCode()+')','Purchase Price ('+curCode()+')','Date Obtained','Obtained From',
     'Seller','Provenance','Cert/Ref #','Short Description','Notes','History',
     'Tags','Rating','Insurance','Photos'];
 
@@ -2416,7 +2474,7 @@ async function exportExcel(){
 
   // ── All Items flat sheet ──────────────────────────────────────
   const allHdr=['#','Collection','Group','Item Name','Category','Condition','Material','Dimensions',
-    'Est. Value ($)','Purchase Price ($)','Date Obtained','Obtained From','Seller',
+    'Est. Value ('+curCode()+')','Purchase Price ('+curCode()+')','Date Obtained','Obtained From','Seller',
     'Provenance','Cert/Ref #','Short Description','Notes','History','Tags','Rating','Insurance','Photos'];
   const allRows=[allHdr];
   let seq2=0;
@@ -2680,8 +2738,8 @@ async function importExcel(e){
           name:itemName,category:row.Category||'',groupId,condition:row.Condition||'',
           material:row.Material||'',
           height:_dim.height,width:_dim.width,dimUnit:_dim.dimUnit,
-          value:(row['Est. Value ($)']||row['Est. Value']||'').toString(),
-          purchasePrice:(row['Purchase Price ($)']||row['Purchase Price']||'').toString(),
+          value:(_pickCol(row,'Est. Value')||'').toString(),
+          purchasePrice:(_pickCol(row,'Purchase Price')||'').toString(),
           obtainedDate:(row['Date Obtained']||'').toString(),
           obtainedFrom:(row['Obtained From']||'').toString(),
           seller:(row.Seller||'').toString(),
@@ -2732,30 +2790,50 @@ async function exportInsuranceReport(){
   const now=new Date();
   const dateStr=now.toLocaleDateString();
   const owner=(typeof currentUser!=='undefined' && currentUser && (currentUser.displayName||currentUser.email)) || 'Collection owner';
-  const money=n=>'$'+(Number(n)||0).toFixed(2);
+  const refNo='HDR-'+now.toISOString().slice(0,10).replace(/-/g,'')+'-'+String(Math.floor(now.getTime()/1000)%10000).padStart(4,'0');
+  const money=n=>fmtMoney(n);
   const cut=(t,n)=>{t=String(t||''); return t.length>n?t.substring(0,n-1)+'…':t;};
+  const photoCountOf=i=>(i.photos||[]).filter(p=>p).length;
+  const sumVal=arr=>arr.reduce((a,i)=>a+(parseFloat(i.value)||0),0);
+  const sumCost=arr=>arr.reduce((a,i)=>a+(parseFloat(i.purchasePrice)||0),0);
 
-  // Bucket EVERY item under a collection so nothing is omitted from the schedule
-  const buckets=[]; const assigned=new Set();
+  // Collection > Group > Items — every item must appear exactly once
+  const sections=[]; const assigned=new Set();
   db.collections.forEach(col=>{
-    const gids=db.groups.filter(g=>g.collectionId===col.id).map(g=>g.id);
-    const items=db.items.filter(i=>gids.indexOf(i.groupId)!==-1);
-    items.forEach(i=>assigned.add(i.id));
-    if(items.length) buckets.push({name:col.name||'Collection', items});
+    const groups=[];
+    db.groups.filter(g=>g.collectionId===col.id).forEach(g=>{
+      const items=db.items.filter(i=>i.groupId===g.id);
+      items.forEach(i=>assigned.add(i.id));
+      if(items.length) groups.push({name:g.name||'Group', items});
+    });
+    if(groups.length) sections.push({name:col.name||'Collection', groups});
   });
   const leftover=db.items.filter(i=>!assigned.has(i.id));
-  if(leftover.length) buckets.push({name:'Uncategorised', items:leftover});
+  if(leftover.length){
+    const byGroup=new Map();
+    leftover.forEach(i=>{
+      const g=db.groups.find(x=>x.id===i.groupId);
+      const key=g?(g.name||'Group'):'No group';
+      if(!byGroup.has(key)) byGroup.set(key,[]);
+      byGroup.get(key).push(i);
+    });
+    const groups=[]; byGroup.forEach((items,name)=>groups.push({name,items}));
+    sections.push({name:'Uncategorised', groups});
+  }
+  const secItems=sec=>sec.groups.reduce((a,g)=>a.concat(g.items),[]);
 
-  const grandVal=db.items.reduce((a,i)=>a+(parseFloat(i.value)||0),0);
-  const grandCost=db.items.reduce((a,i)=>a+(parseFloat(i.purchasePrice)||0),0);
+  const itemNo=new Map(); let _n=0;
+  sections.forEach(sec=>sec.groups.forEach(g=>g.items.forEach(i=>{ _n++; itemNo.set(i.id,_n); })));
+  const grandVal=sumVal(db.items), grandCost=sumCost(db.items);
 
-  let page=1;
+  let page=1, y=0;
   function footer(){
     doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.setTextColor(130,125,115);
-    doc.text('Collection Insurance Schedule · '+owner+' · generated '+dateStr,M,PH-8);
+    doc.text(refNo+' · '+owner+' · '+dateStr,M,PH-8);
     doc.text('Page '+page,RIGHT,PH-8,{align:'right'});
   }
   function nextPage(){ footer(); doc.addPage(); page++; }
+  function ensure(h){ if(y+h>PH-18){ nextPage(); y=20; return true; } return false; }
 
   // ══ COVER ══
   doc.setFillColor(201,168,76);doc.rect(0,0,PW,20,'F');
@@ -2764,144 +2842,252 @@ async function exportInsuranceReport(){
   doc.setFontSize(7.5);doc.setFont('helvetica','normal');
   doc.text('Collection records',RIGHT,13,{align:'right'});
 
-  doc.setFontSize(20);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
-  doc.text('Collection Insurance Schedule',M,38);
-  doc.setDrawColor(201,168,76);doc.setLineWidth(0.8);doc.line(M,42,RIGHT,42);
+  doc.setFontSize(19);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
+  doc.text('Schedule of Collectable Property',M,36);
+  doc.setFontSize(9.5);doc.setFont('helvetica','normal');doc.setTextColor(110,95,45);
+  doc.text('Prepared for insurance purposes',M,42);
+  doc.setDrawColor(201,168,76);doc.setLineWidth(0.8);doc.line(M,45,RIGHT,45);
 
-  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(70,64,52);
-  doc.text('Prepared for:',M,52); doc.setFont('helvetica','bold'); doc.text(owner,M+28,52);
-  doc.setFont('helvetica','normal'); doc.text('Date generated:',M,58); doc.setFont('helvetica','bold'); doc.text(now.toLocaleString(),M+28,58);
+  doc.setFontSize(8.5);doc.setTextColor(70,64,52);
+  const meta=[['Owner / insured',owner],['Effective date of values',dateStr],['Date of report',now.toLocaleString()],['Report reference',refNo],['Currency',curCode()],['Intended users','The owner and their insurer or broker']];
+  let my=53;
+  meta.forEach(r=>{
+    doc.setFont('helvetica','normal');doc.setTextColor(120,112,95);doc.text(r[0],M,my);
+    doc.setFont('helvetica','bold');doc.setTextColor(45,40,30);doc.text(r[1],M+46,my);
+    my+=5.4;
+  });
 
-  // Summary boxes
-  const bw=(RIGHT-M-8)/3, by=68, bh=24;
-  const boxes=[['Items covered', String(db.items.length)],['Total estimated value', money(grandVal)],['Total purchase cost', money(grandCost)]];
-  boxes.forEach((b,ix)=>{
+  const bw=(RIGHT-M-8)/3, by=my+4, bh=22;
+  [['Items scheduled', String(db.items.length)],['Total estimated value', money(grandVal)],['Total purchase cost', money(grandCost)]].forEach((b,ix)=>{
     const bx=M+ix*(bw+4);
     doc.setFillColor(250,247,238);doc.setDrawColor(220,210,180);doc.setLineWidth(0.3);
     doc.rect(bx,by,bw,bh,'FD');
-    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(120,112,95);
-    doc.text(b[0],bx+4,by+7);
-    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
-    doc.text(b[1],bx+4,by+17);
+    doc.setFontSize(6.8);doc.setFont('helvetica','normal');doc.setTextColor(120,112,95);
+    doc.text(b[0],bx+4,by+6.5);
+    doc.setFontSize(12.5);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
+    doc.text(b[1],bx+4,by+16);
   });
 
-  // Per-collection breakdown
-  let y=by+bh+12;
+  y=by+bh+10;
   doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
   doc.text('Summary by collection',M,y); y+=5;
   doc.setFillColor(238,232,214);doc.rect(M,y,RIGHT-M,7,'F');
   doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(70,64,52);
-  doc.text('Collection',M+3,y+4.8); doc.text('Items',M+96,y+4.8,{align:'right'});
-  doc.text('Purchase cost',M+136,y+4.8,{align:'right'}); doc.text('Estimated value',RIGHT-3,y+4.8,{align:'right'});
+  doc.text('Collection',M+3,y+4.8);
+  doc.text('Groups',M+84,y+4.8,{align:'right'});
+  doc.text('Items',M+102,y+4.8,{align:'right'});
+  doc.text('Purchase cost',M+140,y+4.8,{align:'right'});
+  doc.text('Estimated value',RIGHT-3,y+4.8,{align:'right'});
   y+=7;
   doc.setFont('helvetica','normal');
-  buckets.forEach((b,ix)=>{
-    if(y>PH-52){ nextPage(); y=24; }
-    const v=b.items.reduce((a,i)=>a+(parseFloat(i.value)||0),0);
-    const c=b.items.reduce((a,i)=>a+(parseFloat(i.purchasePrice)||0),0);
+  sections.forEach((sec,ix)=>{
+    if(y>PH-40){ nextPage(); y=24; }
+    const si=secItems(sec);
     if(ix%2===0){ doc.setFillColor(250,248,243); doc.rect(M,y,RIGHT-M,6.5,'F'); }
     doc.setTextColor(45,40,30);doc.setFontSize(7.5);
-    doc.text(cut(b.name,52),M+3,y+4.5);
-    doc.text(String(b.items.length),M+96,y+4.5,{align:'right'});
-    doc.text(money(c),M+136,y+4.5,{align:'right'});
-    doc.text(money(v),RIGHT-3,y+4.5,{align:'right'});
+    doc.text(cut(sec.name,46),M+3,y+4.5);
+    doc.text(String(sec.groups.length),M+84,y+4.5,{align:'right'});
+    doc.text(String(si.length),M+102,y+4.5,{align:'right'});
+    doc.text(money(sumCost(si)),M+140,y+4.5,{align:'right'});
+    doc.text(money(sumVal(si)),RIGHT-3,y+4.5,{align:'right'});
     y+=6.5;
   });
   doc.setDrawColor(201,168,76);doc.setLineWidth(0.5);doc.line(M,y,RIGHT,y); y+=5;
   doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(35,30,20);
   doc.text('TOTAL',M+3,y);
-  doc.text(String(db.items.length),M+96,y,{align:'right'});
-  doc.text(money(grandCost),M+136,y,{align:'right'});
+  doc.text(String(db.items.length),M+102,y,{align:'right'});
+  doc.text(money(grandCost),M+140,y,{align:'right'});
   doc.text(money(grandVal),RIGHT-3,y,{align:'right'});
+  y+=10;
 
-  // Disclaimer
-  const dy=PH-46;
+  ensure(30);
   doc.setFillColor(248,245,236);doc.setDrawColor(220,210,180);doc.setLineWidth(0.3);
-  doc.rect(M,dy,RIGHT-M,30,'FD');
-  doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(120,95,30);
-  doc.text('Important',M+4,dy+6);
-  doc.setFont('helvetica','normal');doc.setTextColor(90,84,72);
-  const disc='This schedule is a self-declared inventory compiled by the collection owner from their own records. Values shown are the owner’s own estimates unless separately documented, and do not constitute a professional, independent or certified valuation. Photographs are included as evidence of ownership and condition as at the date of generation. Check your insurer’s requirements — high-value items often require a separate professional appraisal.';
-  doc.text(doc.splitTextToSize(disc,RIGHT-M-8),M+4,dy+11);
+  doc.rect(M,y,RIGHT-M,26,'FD');
+  doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(120,95,30);
+  doc.text('Basis of value',M+4,y+6);
+  doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(90,84,72);
+  const basis='"Estimated value" is the owner’s estimate of the cost to replace the item with one of comparable make, model and condition at the effective date (replacement value). "Purchase cost" is the amount originally paid, where recorded. All amounts are stated in '+curCode()+'. See the Basis of value, assumptions and limitations section for the full statement.';
+  doc.text(doc.splitTextToSize(basis,RIGHT-M-8),M+4,y+11);
 
   // ══ ITEMISED SCHEDULE ══
-  const CX={n:M, item:M+8, cat:M+62, cond:M+86, acq:M+106, cost:M+148, val:M+172, ref:M+174};
+  const CX={n:M, item:M+7, cat:M+49, cond:M+67, acq:M+81, ref:M+97, cost:M+138, val:M+162, photo:M+166};
   function tableHead(yy){
     doc.setFillColor(45,40,28);doc.rect(M,yy,RIGHT-M,7,'F');
-    doc.setFontSize(6.8);doc.setFont('helvetica','bold');doc.setTextColor(232,214,160);
+    doc.setFontSize(6.4);doc.setFont('helvetica','bold');doc.setTextColor(232,214,160);
     doc.text('#',CX.n+1,yy+4.7);
     doc.text('Item',CX.item,yy+4.7);
     doc.text('Category',CX.cat,yy+4.7);
     doc.text('Condition',CX.cond,yy+4.7);
     doc.text('Acquired',CX.acq,yy+4.7);
+    doc.text('Serial / ref',CX.ref,yy+4.7);
     doc.text('Purchase',CX.cost,yy+4.7,{align:'right'});
-    doc.text('Est. value',RIGHT-1,yy+4.7,{align:'right'});
+    doc.text('Est. value',CX.val,yy+4.7,{align:'right'});
+    doc.text('Photo',CX.photo,yy+4.7);
     return yy+7;
   }
+  function groupHead(name,cont){
+    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(60,54,42);
+    doc.text(cut(name,60)+(cont?' (cont.)':''),M+2,y+3.5);
+    y+=5.5;
+  }
+
   nextPage();
   doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
   doc.text('Itemised schedule',M,20);
-  y=26;
-  let seq=0;
-  for(const b of buckets){
-    if(y>PH-40){ nextPage(); y=20; }
-    doc.setFontSize(9.5);doc.setFont('helvetica','bold');doc.setTextColor(120,95,30);
-    doc.text(b.name,M,y+4); y+=7;
-    y=tableHead(y);
-    doc.setFont('helvetica','normal');doc.setFontSize(7);
-    let rowIx=0;
-    for(const it of b.items){
-      if(y>PH-20){ nextPage(); y=20; y=tableHead(y); doc.setFont('helvetica','normal');doc.setFontSize(7); }
-      seq++; rowIx++;
-      if(rowIx%2===0){ doc.setFillColor(250,248,243); doc.rect(M,y,RIGHT-M,6,'F'); }
-      doc.setTextColor(45,40,30);
-      doc.text(String(seq),CX.n+1,y+4.2);
-      doc.text(cut(it.name,34),CX.item,y+4.2);
-      doc.text(cut(it.category,14),CX.cat,y+4.2);
-      doc.text(cut(it.condition,11),CX.cond,y+4.2);
-      doc.text(cut(it.obtainedDate,12),CX.acq,y+4.2);
-      doc.text(money(it.purchasePrice),CX.cost,y+4.2,{align:'right'});
-      doc.text(money(it.value),RIGHT-1,y+4.2,{align:'right'});
-      y+=6;
+  doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(110,104,92);
+  doc.text('Listed by collection, then group. The Photo column gives the Annexure A reference for that item.',M,25.5);
+  y=32;
+
+  for(const sec of sections){
+    ensure(26);
+    const si=secItems(sec);
+    doc.setFillColor(240,234,218);doc.rect(M,y,RIGHT-M,8,'F');
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(90,70,20);
+    doc.text(cut(sec.name,52),M+3,y+5.6);
+    doc.setFontSize(7);doc.setFont('helvetica','normal');
+    doc.text(si.length+' items · '+money(sumVal(si)),RIGHT-3,y+5.6,{align:'right'});
+    y+=11;
+    for(const g of sec.groups){
+      ensure(22);
+      groupHead(g.name,false);
+      y=tableHead(y);
+      doc.setFont('helvetica','normal');doc.setFontSize(6.6);
+      let rowIx=0;
+      for(const it of g.items){
+        if(y+6>PH-18){
+          nextPage(); y=20;
+          groupHead(g.name,true);
+          y=tableHead(y);
+          doc.setFont('helvetica','normal');doc.setFontSize(6.6);
+        }
+        rowIx++;
+        const no=itemNo.get(it.id);
+        if(rowIx%2===0){ doc.setFillColor(250,248,243); doc.rect(M,y,RIGHT-M,6,'F'); }
+        doc.setTextColor(45,40,30);
+        doc.text(String(no),CX.n+1,y+4.2);
+        doc.text(cut(it.name,27),CX.item,y+4.2);
+        doc.text(cut(it.category,11),CX.cat,y+4.2);
+        doc.text(cut(it.condition,9),CX.cond,y+4.2);
+        doc.text(cut(it.obtainedDate,11),CX.acq,y+4.2);
+        doc.text(cut(it.certRef,13),CX.ref,y+4.2);
+        doc.text(money(it.purchasePrice),CX.cost,y+4.2,{align:'right'});
+        doc.text(money(it.value),CX.val,y+4.2,{align:'right'});
+        if(photoCountOf(it)){ doc.setTextColor(140,110,40); doc.text('A-'+no,CX.photo,y+4.2); }
+        else { doc.setTextColor(165,158,145); doc.text('—',CX.photo,y+4.2); }
+        y+=6;
+      }
+      doc.setDrawColor(215,205,180);doc.setLineWidth(0.3);doc.line(M,y,RIGHT,y);
+      doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(60,54,42);
+      doc.text('Subtotal — '+cut(g.name,26)+' ('+g.items.length+' items)',CX.item,y+4.6);
+      doc.text(money(sumCost(g.items)),CX.cost,y+4.6,{align:'right'});
+      doc.text(money(sumVal(g.items)),CX.val,y+4.6,{align:'right'});
+      y+=9;
     }
-    const sv=b.items.reduce((a,i)=>a+(parseFloat(i.value)||0),0);
-    const sc=b.items.reduce((a,i)=>a+(parseFloat(i.purchasePrice)||0),0);
-    doc.setDrawColor(210,200,175);doc.setLineWidth(0.3);doc.line(M,y,RIGHT,y);
-    doc.setFont('helvetica','bold');doc.setFontSize(7.2);doc.setTextColor(35,30,20);
-    doc.text('Subtotal — '+cut(b.name,30)+' ('+b.items.length+' items)',CX.item,y+5);
-    doc.text(money(sc),CX.cost,y+5,{align:'right'});
-    doc.text(money(sv),RIGHT-1,y+5,{align:'right'});
+    ensure(12);
+    doc.setFillColor(235,228,208);doc.rect(M,y,RIGHT-M,7,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(7.6);doc.setTextColor(70,55,15);
+    doc.text('Collection total — '+cut(sec.name,24)+' ('+si.length+' items)',CX.item,y+4.8);
+    doc.text(money(sumCost(si)),CX.cost,y+4.8,{align:'right'});
+    doc.text(money(sumVal(si)),CX.val,y+4.8,{align:'right'});
     y+=12;
   }
-  if(y>PH-26){ nextPage(); y=22; }
+  ensure(12);
   doc.setFillColor(45,40,28);doc.rect(M,y,RIGHT-M,9,'F');
   doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(232,214,160);
   doc.text('GRAND TOTAL — '+db.items.length+' items',CX.item,y+6);
   doc.text(money(grandCost),CX.cost,y+6,{align:'right'});
-  doc.text(money(grandVal),RIGHT-1,y+6,{align:'right'});
+  doc.text(money(grandVal),CX.val,y+6,{align:'right'});
 
-  // ══ PHOTO EVIDENCE ══
-  const withPhoto=db.items.filter(i=>(i.photos||[]).filter(p=>p).length);
-  if(withPhoto.length){
+  // ══ BASIS OF VALUE, ASSUMPTIONS AND LIMITATIONS + DECLARATION ══
+  nextPage(); y=20;
+  doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
+  doc.text('Basis of value, assumptions and limitations',M,y);
+  doc.setDrawColor(201,168,76);doc.setLineWidth(0.6);doc.line(M,y+3,RIGHT,y+3);
+  y+=11;
+  const points=[
+    ['Intended use and users','This schedule has been prepared to evidence the ownership, condition and value of the items listed, for insurance purposes. It is intended for use by the owner named above and their insurer or broker.'],
+    ['Basis of value','Amounts shown as "Estimated value" are the owner’s estimate of the cost to replace each item with one of comparable make, model, age and condition at the effective date (commonly referred to as replacement value). They are not fair market value, auction estimate, or forced-sale value. "Purchase cost" is the amount originally paid where the owner has recorded it.'],
+    ['How this schedule was prepared','The particulars, values and photographs were compiled by the owner from their own records using Hoardr. Items have not been inspected, authenticated or valued by an independent appraiser, and no market research has been carried out in support of the figures shown.'],
+    ['This is not a professional appraisal','This document is a self-declared inventory. It is not an independent, certified or professional appraisal and has not been prepared in accordance with USPAP or any equivalent appraisal standard. Where an insurer requires a formal valuation, a qualified appraiser should be engaged.'],
+    ['High-value items','Insurers commonly apply a per-item limit under standard contents cover and require items above that threshold to be separately scheduled, often supported by an independent appraisal. The owner should confirm the requirements of their own policy.'],
+    ['Photographic evidence','Photographs at Annexure A show each item as at the effective date and are cross-referenced to the schedule by the reference shown in the Photo column. Condition may have changed since the photographs were taken.'],
+    ['Supporting evidence','Receipts, certificates of authenticity, serial numbers and any independent valuations should be retained alongside this schedule, as insurers frequently request more than one form of proof when a claim is made.'],
+    ['Keeping this schedule current','A copy should be stored away from the items themselves — for example in cloud storage or with another party. The schedule should be reviewed and reissued at least annually, and whenever items are acquired, disposed of, or change materially in value.']
+  ];
+  points.forEach((pt,ix)=>{
+    const body=doc.splitTextToSize(pt[1],RIGHT-M-6);
+    ensure(9+body.length*3.4);
+    doc.setFontSize(8);doc.setFont('helvetica','bold');doc.setTextColor(90,70,20);
+    doc.text((ix+1)+'.  '+pt[0],M,y); y+=4.4;
+    doc.setFontSize(7.2);doc.setFont('helvetica','normal');doc.setTextColor(80,74,64);
+    doc.text(body,M+6,y); y+=body.length*3.4+4;
+  });
+
+  ensure(46);
+  y+=4;
+  doc.setFillColor(248,245,236);doc.setDrawColor(201,168,76);doc.setLineWidth(0.5);
+  doc.rect(M,y,RIGHT-M,40,'FD');
+  doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(90,70,20);
+  doc.text('Owner declaration',M+4,y+7);
+  doc.setFontSize(7.2);doc.setFont('helvetica','normal');doc.setTextColor(80,74,64);
+  doc.text(doc.splitTextToSize('I declare that the items listed in this schedule are owned by me, and that the particulars and values recorded are true and correct to the best of my knowledge and belief.',RIGHT-M-10),M+4,y+12);
+  doc.setDrawColor(150,142,125);doc.setLineWidth(0.3);
+  doc.line(M+4,y+30,M+70,y+30); doc.line(M+80,y+30,M+130,y+30); doc.line(M+140,y+30,RIGHT-4,y+30);
+  doc.setFontSize(6.5);doc.setTextColor(120,112,95);
+  doc.text('Signature',M+4,y+34);
+  doc.text('Name: '+cut(owner,26),M+80,y+34);
+  doc.text('Date',M+140,y+34);
+
+  // ══ ANNEXURE A ══
+  const annex=sections.map(sec=>({
+    name:sec.name,
+    groups:sec.groups.map(g=>({name:g.name, items:g.items.filter(i=>photoCountOf(i))})).filter(g=>g.items.length)
+  })).filter(sec=>sec.groups.length);
+
+  if(annex.length){
     nextPage();
     doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
-    doc.text('Photographic evidence',M,20);
+    doc.text('Annexure A — Photographic evidence',M,20);
+    doc.setDrawColor(201,168,76);doc.setLineWidth(0.6);doc.line(M,23,RIGHT,23);
     doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(110,104,92);
-    doc.text('One representative photograph per item, as at '+dateStr+'.',M,25.5);
+    doc.text('Arranged by collection and group, matching the itemised schedule. Each photograph is labelled',M,29);
+    doc.text('with its schedule reference — e.g. A-12 is item 12. Taken as at '+dateStr+'.',M,33);
     const PWD=42, PHT=32, GAP=4;
-    let px=M, py=32, colIx=0;
-    for(const it of withPhoto){
-      if(py+PHT+9>PH-14){ nextPage(); py=20; px=M; colIx=0; }
-      const src=(it.photos||[]).filter(p=>p)[0];
-      try{ doc.addImage(src,'JPEG',px,py,PWD,PHT); }
-      catch(e){ doc.setFillColor(240,238,232);doc.rect(px,py,PWD,PHT,'F'); }
-      doc.setDrawColor(215,205,180);doc.setLineWidth(0.3);doc.rect(px,py,PWD,PHT,'S');
-      doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(55,50,40);
-      doc.text(cut(it.name,26),px,py+PHT+3.5);
-      doc.setTextColor(140,110,40);
-      doc.text(money(it.value),px,py+PHT+7);
-      colIx++; px+=PWD+GAP;
-      if(colIx===4){ colIx=0; px=M; py+=PHT+11; }
+    y=40;
+    for(const sec of annex){
+      ensure(30);
+      doc.setFillColor(240,234,218);doc.rect(M,y,RIGHT-M,8,'F');
+      doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(90,70,20);
+      doc.text(cut(sec.name,52),M+3,y+5.6);
+      y+=11;
+      for(const g of sec.groups){
+        ensure(PHT+22);
+        doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(60,54,42);
+        doc.text(cut(g.name,60),M+2,y+3.5);
+        y+=6;
+        let px=M, colIx=0;
+        for(const it of g.items){
+          if(y+PHT+13>PH-16){ nextPage(); y=20; px=M; colIx=0; }
+          const no=itemNo.get(it.id);
+          const src=(it.photos||[]).filter(p=>p)[0];
+          try{ doc.addImage(src,'JPEG',px,y,PWD,PHT); }
+          catch(e){ doc.setFillColor(240,238,232);doc.rect(px,y,PWD,PHT,'F'); }
+          doc.setDrawColor(215,205,180);doc.setLineWidth(0.3);doc.rect(px,y,PWD,PHT,'S');
+          doc.setFillColor(45,40,28);doc.rect(px,y,14,5.2,'F');
+          doc.setFontSize(6.2);doc.setFont('helvetica','bold');doc.setTextColor(232,214,160);
+          doc.text('A-'+no,px+1.6,y+3.7);
+          doc.setFontSize(6);doc.setFont('helvetica','bold');doc.setTextColor(45,40,30);
+          doc.text(cut(it.name,25),px,y+PHT+3.5);
+          doc.setFont('helvetica','normal');doc.setTextColor(140,110,40);
+          const extra=photoCountOf(it)>1?('  (+'+(photoCountOf(it)-1)+' more on file)'):'';
+          doc.text(money(it.value)+extra,px,y+PHT+7);
+          colIx++; px+=PWD+GAP;
+          if(colIx===4){ colIx=0; px=M; y+=PHT+13; }
+        }
+        if(colIx!==0){ y+=PHT+13; }
+        y+=3;
+      }
+      y+=3;
     }
   }
 
@@ -3010,7 +3196,7 @@ async function exportPDF(){
       doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(120,110,80);
       doc.text(gItems.length+' item'+(gItems.length!==1?'s':''),bx+3,by+13);
       const gv=gItems.reduce((a,i)=>a+parseFloat(i.value||0),0);
-      if(gv>0){doc.setTextColor(201,168,76);doc.text('$'+gv.toFixed(2),bx+3,by+18);}
+      if(gv>0){doc.setTextColor(201,168,76);doc.text(fmtMoney(gv),bx+3,by+18);}
       bx+=bw+4;
     });
 
@@ -3103,10 +3289,10 @@ async function exportPDF(){
         // VALUE — right-aligned, prominent
         if(item.value){
           doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(201,168,76);
-          doc.text('$'+parseFloat(item.value).toFixed(2),PW-M-2,startY+7,{align:'right'});
+          doc.text(fmtMoney(item.value),PW-M-2,startY+7,{align:'right'});
           if(item.purchasePrice){
             doc.setFontSize(6.5);doc.setTextColor(120,110,80);doc.setFont('helvetica','normal');
-            doc.text('Paid: $'+parseFloat(item.purchasePrice).toFixed(2),PW-M-2,startY+13,{align:'right'});
+            doc.text('Paid: '+fmtMoney(item.purchasePrice),PW-M-2,startY+13,{align:'right'});
           }
         }
 
@@ -3149,12 +3335,12 @@ async function exportPDF(){
     const cItems=cGroups.reduce((a,g)=>a+db.items.filter(i=>i.groupId===g.id).length,0);
     const cPhotos=cGroups.reduce((a,g)=>a+db.items.filter(i=>i.groupId===g.id).reduce((b,i)=>b+(i.photos||[]).filter(p=>p).length,0),0);
     const cVal=cGroups.reduce((a,g)=>a+db.items.filter(i=>i.groupId===g.id).reduce((b,i)=>b+parseFloat(i.value||0),0),0);
-    sumBody.push([(col.icon||'○')+' '+col.name,col.category||'General',cGroups.length,cItems,cPhotos,cVal>0?'$'+cVal.toFixed(2):'—',col.desc||'']);
+    sumBody.push([(col.icon||'○')+' '+col.name,col.category||'General',cGroups.length,cItems,cPhotos,cVal>0?fmtMoney(cVal):'—',col.desc||'']);
     cGroups.forEach(g=>{
       const gi=db.items.filter(i=>i.groupId===g.id);
       const gph=gi.reduce((a,i)=>a+(i.photos||[]).filter(p=>p).length,0);
       const gv=gi.reduce((a,i)=>a+parseFloat(i.value||0),0);
-      sumBody.push(['  └─ '+(g.icon||'')+' '+g.name,'','',gi.length,gph,gv>0?'$'+gv.toFixed(2):'—','']);
+      sumBody.push(['  └─ '+(g.icon||'')+' '+g.name,'','',gi.length,gph,gv>0?fmtMoney(gv):'—','']);
     });
   });
   doc.autoTable({startY:24,
@@ -3234,8 +3420,8 @@ function showCollectionSummary() {
       <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--gold2);font-weight:700;margin-bottom:12px">📊 Grand Total</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center">
         <div><div style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--gold2);font-weight:700">${totalItems}</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Total Items</div></div>
-        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--green2);font-weight:700">$${grandValue.toFixed(2)}</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Est. Value</div></div>
-        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--rust2);font-weight:700">$${grandCost.toFixed(2)}</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Total Cost AUD</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--green2);font-weight:700">${fmtMoney(grandValue)}</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Est. Value</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--rust2);font-weight:700">${fmtMoney(grandCost)}</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Total Cost AUD</div></div>
       </div>
     </div>`;
 
@@ -3250,11 +3436,11 @@ function showCollectionSummary() {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:${s.groups.length ? '10px' : '0'}">
         <div style="background:var(--surface);border-radius:6px;padding:8px;text-align:center">
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--green2);font-weight:700">$${s.totalValue.toFixed(2)}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--green2);font-weight:700">${fmtMoney(s.totalValue)}</div>
           <div style="font-size:10px;color:var(--text3);margin-top:2px">Est. Value</div>
         </div>
         <div style="background:var(--surface);border-radius:6px;padding:8px;text-align:center">
-          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--rust2);font-weight:700">$${s.totalCost.toFixed(2)}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--rust2);font-weight:700">${fmtMoney(s.totalCost)}</div>
           <div style="font-size:10px;color:var(--text3);margin-top:2px">Total Cost AUD</div>
         </div>
       </div>`;
@@ -3265,8 +3451,8 @@ function showCollectionSummary() {
           <span style="font-size:12px;color:var(--text3)">└─</span>
           <span style="flex:1;font-size:12px;color:var(--text2)">${escH(g.name)}</span>
           <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3)">${g.itemCount} items</span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green2)">$${g.totalValue.toFixed(2)}</span>
-          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--rust2)">$${g.totalCost.toFixed(2)}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--green2)">${fmtMoney(g.totalValue)}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--rust2)">${fmtMoney(g.totalCost)}</span>
         </div>`;
       });
       html += `</div>`;
@@ -3360,10 +3546,10 @@ async function loadFromBackup(e) {
 async function shareCollection() {
   const summary = getCollectionSummary();
   const grandTotal = db.items.reduce((a,i)=>a+parseFloat(i.value||0),0);
-  const shareText = `My Collector's Vault\n${db.items.length} items across ${db.collections.length} collections\nEst. total value: $${grandTotal.toFixed(2)} AUD\n\nCollections:\n` +
+  const shareText = `My Collector's Vault\n${db.items.length} items across ${db.collections.length} collections\nEst. total value: ${fmtMoney(grandTotal)} AUD\n\nCollections:\n` +
     db.collections.map(col => {
       const s = summary[col.id];
-      return `• ${col.name}: ${s.itemCount} items ($${s.totalValue.toFixed(2)})`;
+      return `• ${col.name}: ${s.itemCount} items (${fmtMoney(s.totalValue)})`;
     }).join('\n');
   
   if (navigator.share) {
