@@ -88,18 +88,21 @@ header{display:flex;align-items:center;justify-content:space-between;padding:14p
 .user-chip{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--text2)}
 
 /* ── BUTTONS ── */
-.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;border:none;cursor:pointer;transition:all .18s ease;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 16px;border-radius:6px;font-family:'IBM Plex Sans',sans-serif;font-size:13px;font-weight:500;line-height:1.2;border:1px solid transparent;cursor:pointer;transition:all .18s ease;white-space:nowrap;text-transform:none;letter-spacing:normal;vertical-align:middle}
 .btn-gold{background:linear-gradient(135deg,var(--gold),#a87a30);color:#1a1200}
 .btn-gold:hover{background:linear-gradient(135deg,var(--gold2),var(--gold));transform:translateY(-1px);box-shadow:0 4px 12px rgba(201,168,76,.3)}
 .btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2)}
-.btn-outline:hover{border-color:var(--gold);color:var(--gold2);background:rgba(201,168,76,.06)}
-.btn-green{background:linear-gradient(135deg,var(--green),#2d5a3c);color:#d0f0d8}
-.btn-green:hover{background:linear-gradient(135deg,var(--green2),var(--green));transform:translateY(-1px)}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold2);background:rgba(201,168,76,.06);transform:translateY(-1px)}
+.btn-green{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-green:hover{border-color:var(--gold);color:var(--gold2);background:rgba(201,168,76,.06);transform:translateY(-1px)}
 .btn-sm{padding:5px 10px;font-size:12px}
 .btn-icon{padding:7px}
-.btn-blue{background:linear-gradient(135deg,var(--blue),#1e3d55);color:#c8e0f0}
-.btn-blue:hover{background:linear-gradient(135deg,var(--blue2),var(--blue));transform:translateY(-1px)}
-.btn-danger{background:var(--red);color:#ffd0d0;border:none}
+/* File-input buttons are <label> elements — stop them inheriting the global form-label styling */
+label.btn{display:inline-flex;margin-bottom:0;text-transform:none;letter-spacing:normal;font-family:'IBM Plex Sans',sans-serif}
+label.btn.btn-sm{font-size:12px}
+.btn-blue{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-blue:hover{border-color:var(--gold);color:var(--gold2);background:rgba(201,168,76,.06);transform:translateY(-1px)}
+.btn-danger{background:var(--red);color:#ffd0d0;border:1px solid transparent}
 .btn-danger:hover{background:var(--red2)}
 
 /* ── LAYOUT ── */
@@ -580,6 +583,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <button class="btn btn-outline" onclick="openGroupModal();toggleMobileMenu()">＋ Group</button>
     <button class="btn btn-outline" onclick="showCollectionSummary();toggleMobileMenu()">📊 Summary</button>
     <button class="btn btn-outline" onclick="exportPDF();toggleMobileMenu()">📄 Export PDF</button>
+    <button class="btn btn-outline" onclick="exportInsuranceReport();toggleMobileMenu()">🛡 Insurance Report</button>
     <button class="btn btn-outline" onclick="exportExcel();toggleMobileMenu()">📊 Export Excel</button>
     <label class="btn btn-outline" style="cursor:pointer;justify-content:center">
       📂 Import Excel
@@ -712,6 +716,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <div class="io-group">
         <button class="btn btn-outline btn-sm" onclick="exportExcel()">📊 Export Excel</button>
         <button class="btn btn-outline btn-sm" onclick="exportPDF()">📄 Export PDF</button>
+        <button class="btn btn-outline btn-sm" onclick="exportInsuranceReport()">🛡 Insurance Report</button>
         <label class="btn btn-outline btn-sm" style="cursor:pointer">
           📂 Import Excel
           <input type="file" id="importExcel" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
@@ -756,7 +761,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
               <option value="">— Select —</option>
               <option value="Belt Buckle">🪙 Belt Buckle</option>
               <option value="Stamp">📮 Stamp</option>
-              <option value="Diecast">⛏ Diecast Mining Vehicle</option>
+              <option value="Diecast">🚗 Diecast / Model Vehicle</option>
               <option value="Locomotive">🚂 Locomotive / Train</option>
               <option value="Other">📁 Other</option>
               <option value="__custom__">➕ Add custom…</option>
@@ -908,7 +913,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
           <option value="">— General —</option>
           <option value="Belt Buckle">🪙 Belt Buckle</option>
           <option value="Stamp">📮 Stamp</option>
-          <option value="Diecast">⛏ Diecast Mining</option>
+          <option value="Diecast">🚗 Diecast / Model Vehicle</option>
           <option value="Locomotive">🚂 Locomotive / Train</option>
           <option value="Other">📁 Other</option>
         </select>
@@ -937,7 +942,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
           <option value="">— General —</option>
           <option value="Belt Buckle">🪙 Belt Buckle</option>
           <option value="Stamp">📮 Stamp</option>
-          <option value="Diecast">⛏ Diecast Mining</option>
+          <option value="Diecast">🚗 Diecast / Model Vehicle</option>
           <option value="Locomotive">🚂 Locomotive / Train</option>
           <option value="Other">📁 Other</option>
         </select>
@@ -969,11 +974,11 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <div class="modal-title" style="text-align:center;display:block">Welcome to Hoardr</div>
     <p style="color:var(--text2);font-size:13px;text-align:center;margin:8px 0 16px">Your collection is organised in three simple levels:</p>
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px">
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">🗂</span> &nbsp;<b style="color:var(--gold2)">Collections</b> <span style="color:var(--text3);font-size:12px">— the big buckets, e.g. "Belt Buckles".</span></div>
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">📂</span> &nbsp;<b style="color:var(--gold2)">Groups</b> <span style="color:var(--text3);font-size:12px">— sections inside a collection, e.g. "Western Buckles".</span></div>
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">📦</span> &nbsp;<b style="color:var(--gold2)">Items</b> <span style="color:var(--text3);font-size:12px">— each piece, with photos, value, condition & notes.</span></div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">🗂</span> &nbsp;<b style="color:var(--gold2)">Collections</b> <span style="color:var(--text3);font-size:12px">— the top level, one for each thing you collect. e.g. "Diecast Models".</span></div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">📂</span> &nbsp;<b style="color:var(--gold2)">Groups</b> <span style="color:var(--text3);font-size:12px">— sections within a collection. e.g. "1:18 Porsches".</span></div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">📦</span> &nbsp;<b style="color:var(--gold2)">Items</b> <span style="color:var(--text3);font-size:12px">— each individual piece, with its photos, value, condition & notes.</span></div>
     </div>
-    <p style="color:var(--text3);font-size:12px;text-align:center;margin:12px 0">Start with <b>＋ Collection</b>, add Groups, then Items. Reach this guide again from the <b>?</b> button up top.</p>
+    <p style="color:var(--text3);font-size:12px;text-align:center;margin:12px 0">Start by tapping <b>＋</b> and choosing <b>New Collection</b> — then add Groups, then Items. Reach this guide again from the <b>?</b> button up top.</p>
     <button class="btn btn-gold" style="width:100%;justify-content:center" onclick="closeOnboarding(true)">Get started →</button>
   </div>
 </div>
@@ -1658,6 +1663,7 @@ async function deleteItem(id) {
 }
 
 function duplicateItem(id) {
+  if(!isPro()){ showToast('Duplicate item is a Pro feature — coming soon','🔒'); return; }
   const original = db.items.find(i=>i.id===id);
   if (!original) return;
   const copy = JSON.parse(JSON.stringify(original));
@@ -1668,11 +1674,14 @@ function duplicateItem(id) {
   document.getElementById('panelTitle').textContent = 'Duplicate Item — Edit & Save';
   // Pre-fill all fields from original
   document.getElementById('fName').value = 'Copy of ' + (copy.name||'');
-  document.getElementById('fCategory').value = copy.category||'';
+  setCategoryField(copy.category||'');
   document.getElementById('fGroup').value = copy.groupId||'';
   document.getElementById('fCondition').value = copy.condition||'';
-  document.getElementById('fMaterial').value = copy.material||'';
+  setMaterialField(copy.material||'');
   document.getElementById('fValue').value = copy.value||'';
+  document.getElementById('fHeight').value = copy.height||'';
+  document.getElementById('fWidth').value = copy.width||'';
+  document.getElementById('fDimUnit').value = copy.dimUnit||'mm';
   document.getElementById('fRating').value = copy.rating||0;
   setRatingDisplay(copy.rating||0);
   document.getElementById('fObtainedDate').value = copy.obtainedDate||'';
@@ -1739,7 +1748,7 @@ function updateStats() {
   document.getElementById('statPhotos').textContent=pc;
   document.getElementById('allCount').textContent=db.items.length;
 }
-function catEmoji(cat){return{'Belt Buckle':'🪙','Stamp':'📮','Diecast':'⛏','Locomotive':'🚂','Other':'📁'}[cat]||'📦'}
+function catEmoji(cat){return{'Belt Buckle':'🪙','Stamp':'📮','Diecast':'🚗','Locomotive':'🚂','Other':'📁'}[cat]||'📦'}
 function catColor(cat){return{'Belt Buckle':'#c9a84c','Stamp':'#6aab7a','Diecast':'#5a8eb0','Locomotive':'#8b5e9a','Other':'#c06090'}[cat]||'#7a6e58'}
 
 function alphaSort(arr, key='name') {
@@ -1950,10 +1959,11 @@ const TRAIN_RAILWAYS = ["BR", "Comm", "GNR", "GWR", "LMS", "LNER", "NSWGR", "NSW
 const TRAIN_GAUGES = ["HO", "HO/OO", "OO"];
 const TRAIN_COLOURS = ["Black", "Blue", "Blue/Black", "Blue/Yellow", "Crimson", "Green", "Green/Black", "Maroon", "NSWR Candy", "Olive", "Olive Green", "Red", "Red/Black", "Red/Grey", "Silver/Red", "Swallow", "Swallow Grey", "Yellow"];
 
-const DC_MODEL_MFRS = ["Agri", "Atlas Copco", "Bavarian Scalemodels", "Bosinytoys", "Conrad", "Conrad (4991 of  5000)", "Csichuan Changjiang", "Cursor", "Diapet", "Die Cast Promotions", "Diecast Masters", "Drake", "Dynamic Acera", "Ertl", "First Gear", "Gamma", "Gescha", "Gescha Conrad", "Hartsmith", "Hongwell(Caramara)", "Iconic Replicas", "Joal", "King Equipment", "MatchBox Collectibles", "Minimac", "NZG", "Norscot", "Oxford Diecast", "ROS", "Ros", "Sennebogen", "Shinsei", "Shinsei?", "Siku", "Smart Toys", "SpecCast", "Sword Models", "TWH Collectables", "TWH Collectibles", "Tomica", "Tonkin Replicas", "Tonkin Replicas Precision", "Tonkin Replicas Signature", "Universal Hobbies", "WSI Models", "Yonezawa Diapet"];
-const DC_EQUIP_MFRS = ["Allis Chalmers", "Ammann", "Atlas Copco", "Bell", "Bobcat", "Bucyrus", "Bucyrus Erie", "CPG", "Case", "Case Construction", "Case International", "Caterpillar", "Chevrolet Truck LQ", "Churchill Military", "Clark", "Demag", "Drake", "Dresser", "Esco", "Euclid", "Ford", "Ford Model A", "Ford Model T", "Freighter", "Freightliner", "Fuchs", "Gottwald", "Grove", "Hanomag", "Hitachi", "Ingersoll Rand", "International", "John Deere", "Jonyang", "Kaidiwei", "Kato", "Kawasaki", "Kenworth", "Kenworth(Bowers)", "Kenworth(Toll)", "Kobelco", "Komatsu", "Komatsu Haulpak #495", "Land Rover", "LeTourneau", "Liebherr", "Link-Belt", "Mack", "Mack(Bowers)", "Mack(RW Miller)", "Massey Ferguson", "Mavac", "Menck", "Michigan", "Michigan(Clark)", "Moxy", "Moxy(Komatsu)", "New Holland", "Northwest Engineering", "O&K", "P&H", "PPM", "Peterbilt", "RAC & AA", "Roadtec", "Ruston Bucyrus", "Sennebogen", "Shuttlelift", "Sterling", "Sumitomo", "Tadano", "Taxi", "Terex", "Toll", "Tonkin Replicas", "Vermeer", "Volvo", "Volvo BM", "Wabco Haulpak", "Wesehutte", "Western Star", "Wirtgen", "Zeppelin"];
+const DC_MODEL_MFRS = ["Agri", "Almost Real", "Atlas Copco", "Auto World", "AUTOart", "Bavarian Scalemodels", "BBR", "Bburago", "Bosinytoys", "Brumm", "Bugatti Automobiles", "CMC", "Conrad", "Conrad (4991 of  5000)", "Corgi", "Csichuan Changjiang", "Cursor", "Danbury Mint", "Diapet", "Die Cast Promotions", "Diecast Masters", "Dinky", "Drake", "Dynamic Acera", "Ertl", "Exoto", "First Gear", "Franklin Mint", "Gamma", "Gescha", "Gescha Conrad", "Greenlight", "GT Spirit", "Hartsmith", "Herpa", "Hongwell(Caramara)", "Hot Wheels", "Iconic Replicas", "Ixo", "Jada Toys", "Joal", "Johnny Lightning", "King Equipment", "Kyosho", "LookSmart", "M2 Machines", "Maisto", "Majorette", "Matchbox", "MatchBox Collectibles", "Mattel", "Mini GT", "Minichamps", "Minimac", "Motorart", "Motormax", "Norev", "Norscot", "NZG", "Otto Mobile", "Oxford Diecast", "Polistil", "Racing Champions", "ROS", "Ros", "Schuco", "Sennebogen", "Shinsei", "Shinsei?", "Siku", "Smart Toys", "Solido", "Spark", "SpecCast", "Sun Star", "Sword Models", "Tamiya", "Tarmac Works", "Tecnomodel", "Tomica", "Tonkin Replicas", "Tonkin Replicas Precision", "Tonkin Replicas Signature", "Trofeu", "TWH Collectables", "TWH Collectibles", "Universal Hobbies", "Vitesse", "Welly", "Wiking", "WSI Models", "Yat Ming", "Yonezawa Diapet"];
+const DC_EQUIP_MFRS = ["Abarth", "AC", "Alfa Romeo", "Allis Chalmers", "Ammann", "Aston Martin", "Atlas Copco", "Audi", "Austin", "Bell", "Bentley", "BMW", "Bobcat", "Bucyrus", "Bucyrus Erie", "Bugatti", "Buick", "Cadillac", "Case", "Case Construction", "Case International", "Caterpillar", "Chevrolet", "Chevrolet Truck LQ", "Chrysler", "Churchill Military", "Citroen", "Clark", "CPG", "Datsun", "De Tomaso", "Demag", "Dodge", "Drake", "Dresser", "Esco", "Euclid", "Ferrari", "Fiat", "Ford", "Ford Model A", "Ford Model T", "Freighter", "Freightliner", "Fuchs", "GMC", "Gottwald", "Grove", "Hanomag", "Hitachi", "Holden", "Honda", "Hyundai", "Ingersoll Rand", "International", "Jaguar", "Jeep", "John Deere", "Jonyang", "Kaidiwei", "Kato", "Kawasaki", "Kenworth", "Kenworth(Bowers)", "Kenworth(Toll)", "Kobelco", "Koenigsegg", "Komatsu", "Komatsu Haulpak #495", "Lamborghini", "Lancia", "Land Rover", "LeTourneau", "Lexus", "Liebherr", "Link-Belt", "Lotus", "Mack", "Mack(Bowers)", "Mack(RW Miller)", "Maserati", "Massey Ferguson", "Mavac", "Mazda", "McLaren", "Menck", "Mercedes-Benz", "MG", "Michigan", "Michigan(Clark)", "Mini", "Mitsubishi", "Morris", "Moxy", "Moxy(Komatsu)", "New Holland", "Nissan", "Northwest Engineering", "O&K", "Oldsmobile", "Opel", "P&H", "Pagani", "Peterbilt", "Peugeot", "Plymouth", "Pontiac", "Porsche", "PPM", "RAC & AA", "Renault", "Roadtec", "Rolls-Royce", "Rover", "Ruston Bucyrus", "Saab", "Seat", "Sennebogen", "Shelby", "Shuttlelift", "Skoda", "Sterling", "Subaru", "Sumitomo", "Suzuki", "Tadano", "Taxi", "Terex", "Tesla", "Toll", "Tonkin Replicas", "Toyota", "Triumph", "Vauxhall", "Vermeer", "Volkswagen", "Volvo", "Volvo BM", "Wabco Haulpak", "Wesehutte", "Western Star", "Wirtgen", "Zeppelin"];
 const DC_COLOURS = ["Aqua", "At work", "Beige", "Black", "Black/Gold", "Blue", "Blue & Yellow", "Brown", "Gold", "Green", "Green/White", "Grey", "Grteen", "Maroon", "Military", "Orange", "Orange/Green", "Red", "Red(worn)", "Red/Black", "Red/Green", "Red/White", "Silver", "White", "Yellow", "various"];
-const DC_SCALES = ["1:100", "1:16", "1:25", "1:30", "1:32", "1:35", "1:40", "1:43", "1:45", "1:48", "1:50", "1:52", "1:53", "1:55", "1:60", "1:70", "1:75", "1:76", "1:85", "1:87"];
+const DC_SCALES = ["1:8", "1:12", "1:16", "1:18", "1:20", "1:24", "1:25", "1:30", "1:32", "1:35", "1:40", "1:43", "1:45", "1:48", "1:50", "1:52", "1:53", "1:55", "1:60", "1:64", "1:70", "1:75", "1:76", "1:85", "1:87", "1:100", "1:144", "1:160", "1:220"];
+const DC_PACKAGING = ['Mint in Box (MIB)','Box opened','Box damaged / worn','Sealed on card','Card opened','No box / loose'];
 const DC_LOCATIONS = ['Aust','USA','UK','Canada','China','Hong Kong','Germany','Spain','Malaysia','New Zealand','Other'];
 
 const CAT_FIELDS = {
@@ -1975,15 +1985,16 @@ const CAT_FIELDS = {
     {key:'stamp_type',label:'Type',placeholder:'e.g. Definitive, Commemorative, Airmail'},
   ],
   'Diecast':[
-    {key:'dc_model_mfr',label:'Model Manufacturer',placeholder:'e.g. Norscot, NZG, Conrad',type:'select',opts:DC_MODEL_MFRS},
-    {key:'dc_equip_mfr',label:'Equipment Manufacturer',placeholder:'e.g. Caterpillar, Komatsu',type:'select',opts:DC_EQUIP_MFRS},
-    {key:'dc_model',label:'Model Number',placeholder:'e.g. 797F, D11R'},
+    {key:'dc_model_mfr',label:'Brand / Model Maker',placeholder:'e.g. AUTOart, Hot Wheels, Norscot',type:'select',opts:DC_MODEL_MFRS},
+    {key:'dc_equip_mfr',label:'Vehicle Make / Marque',placeholder:'e.g. Porsche, Ford, Caterpillar',type:'select',opts:DC_EQUIP_MFRS},
+    {key:'dc_model',label:'Model / Casting Name',placeholder:"e.g. '67 Camaro, 797F"},
     {key:'dc_description',label:'Model Description',placeholder:'e.g. Off Highway Truck'},
     {key:'dc_colour',label:'Colour',placeholder:'e.g. Yellow, White',type:'select',opts:DC_COLOURS},
-    {key:'dc_scale',label:'Scale Ratio',placeholder:'e.g. 1:50',type:'select',opts:DC_SCALES},
+    {key:'dc_scale',label:'Scale',placeholder:'e.g. 1:64, 1:18, 1:50',type:'select',opts:DC_SCALES},
     {key:'dc_year_release',label:'Year of Release',placeholder:'e.g. 2009'},
     {key:'dc_serial_no',label:'Serial / Model No',placeholder:'e.g. 55199'},
-    {key:'dc_box',label:'Original Box',placeholder:'Y / N',type:'select',opts:['Y','N']},
+    {key:'dc_box',label:'Has Original Box',placeholder:'Y / N',type:'select',opts:['Y','N']},
+    {key:'dc_packaging',label:'Packaging Condition',placeholder:'e.g. Mint in Box',type:'select',opts:DC_PACKAGING},
     {key:'dc_total_cost_aud',label:'Total Cost AUD ($)',placeholder:'0.00'},
     {key:'dc_purchase_location',label:'Purchase Location',placeholder:'e.g. Aust, USA, UK',type:'select',opts:DC_LOCATIONS},
     {key:'dc_storage_box',label:'Storage Box No',placeholder:'e.g. 26'},
@@ -2107,7 +2118,7 @@ function filterByCat(cat){
 function renderCatChips(){
   const box=document.getElementById('catChips'); if(!box) return;
   const BUILTIN=['Belt Buckle','Stamp','Diecast','Locomotive','Other'];
-  const META={'Belt Buckle':'🪙 Buckles','Stamp':'📮 Stamps','Diecast':'⛏ Diecast','Locomotive':'🚂 Trains','Other':'📁 Other'};
+  const META={'Belt Buckle':'🪙 Buckles','Stamp':'📮 Stamps','Diecast':'🚗 Diecast','Locomotive':'🚂 Trains','Other':'📁 Other'};
   const used=new Set(db.items.map(i=>i.category).filter(Boolean));
   const custom=[...used].filter(c=>!BUILTIN.includes(c)).sort();
   const cats=BUILTIN.concat(custom);
@@ -2700,6 +2711,204 @@ async function importExcel(e){
   };
   reader.readAsBinaryString(file);
   e.target.value='';
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// INSURANCE / APPRAISAL SCHEDULE  (Pro)
+// A dated, itemised schedule of the collection with values, totals and
+// photographic evidence — formatted light/printable for submitting to an
+// insurer. This is a self-declared inventory, NOT an independent valuation.
+// ─────────────────────────────────────────────────────────────
+async function exportInsuranceReport(){
+  if(!isPro()){ showToast('Insurance report is a Pro feature — coming soon','🔒'); return; }
+  if(!db.items.length){ showToast('No items to report','⚠️'); return; }
+  showToast('Building insurance schedule… please wait','⏳');
+  await new Promise(r=>setTimeout(r,60));
+  try{
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const PW=210, PH=297, M=14, RIGHT=PW-M;
+  const now=new Date();
+  const dateStr=now.toLocaleDateString();
+  const owner=(typeof currentUser!=='undefined' && currentUser && (currentUser.displayName||currentUser.email)) || 'Collection owner';
+  const money=n=>'$'+(Number(n)||0).toFixed(2);
+  const cut=(t,n)=>{t=String(t||''); return t.length>n?t.substring(0,n-1)+'…':t;};
+
+  // Bucket EVERY item under a collection so nothing is omitted from the schedule
+  const buckets=[]; const assigned=new Set();
+  db.collections.forEach(col=>{
+    const gids=db.groups.filter(g=>g.collectionId===col.id).map(g=>g.id);
+    const items=db.items.filter(i=>gids.indexOf(i.groupId)!==-1);
+    items.forEach(i=>assigned.add(i.id));
+    if(items.length) buckets.push({name:col.name||'Collection', items});
+  });
+  const leftover=db.items.filter(i=>!assigned.has(i.id));
+  if(leftover.length) buckets.push({name:'Uncategorised', items:leftover});
+
+  const grandVal=db.items.reduce((a,i)=>a+(parseFloat(i.value)||0),0);
+  const grandCost=db.items.reduce((a,i)=>a+(parseFloat(i.purchasePrice)||0),0);
+
+  let page=1;
+  function footer(){
+    doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.setTextColor(130,125,115);
+    doc.text('Collection Insurance Schedule · '+owner+' · generated '+dateStr,M,PH-8);
+    doc.text('Page '+page,RIGHT,PH-8,{align:'right'});
+  }
+  function nextPage(){ footer(); doc.addPage(); page++; }
+
+  // ══ COVER ══
+  doc.setFillColor(201,168,76);doc.rect(0,0,PW,20,'F');
+  doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(26,18,0);
+  doc.text('HOARDR',M,13);
+  doc.setFontSize(7.5);doc.setFont('helvetica','normal');
+  doc.text('Collection records',RIGHT,13,{align:'right'});
+
+  doc.setFontSize(20);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
+  doc.text('Collection Insurance Schedule',M,38);
+  doc.setDrawColor(201,168,76);doc.setLineWidth(0.8);doc.line(M,42,RIGHT,42);
+
+  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(70,64,52);
+  doc.text('Prepared for:',M,52); doc.setFont('helvetica','bold'); doc.text(owner,M+28,52);
+  doc.setFont('helvetica','normal'); doc.text('Date generated:',M,58); doc.setFont('helvetica','bold'); doc.text(now.toLocaleString(),M+28,58);
+
+  // Summary boxes
+  const bw=(RIGHT-M-8)/3, by=68, bh=24;
+  const boxes=[['Items covered', String(db.items.length)],['Total estimated value', money(grandVal)],['Total purchase cost', money(grandCost)]];
+  boxes.forEach((b,ix)=>{
+    const bx=M+ix*(bw+4);
+    doc.setFillColor(250,247,238);doc.setDrawColor(220,210,180);doc.setLineWidth(0.3);
+    doc.rect(bx,by,bw,bh,'FD');
+    doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(120,112,95);
+    doc.text(b[0],bx+4,by+7);
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
+    doc.text(b[1],bx+4,by+17);
+  });
+
+  // Per-collection breakdown
+  let y=by+bh+12;
+  doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
+  doc.text('Summary by collection',M,y); y+=5;
+  doc.setFillColor(238,232,214);doc.rect(M,y,RIGHT-M,7,'F');
+  doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(70,64,52);
+  doc.text('Collection',M+3,y+4.8); doc.text('Items',M+96,y+4.8,{align:'right'});
+  doc.text('Purchase cost',M+136,y+4.8,{align:'right'}); doc.text('Estimated value',RIGHT-3,y+4.8,{align:'right'});
+  y+=7;
+  doc.setFont('helvetica','normal');
+  buckets.forEach((b,ix)=>{
+    if(y>PH-52){ nextPage(); y=24; }
+    const v=b.items.reduce((a,i)=>a+(parseFloat(i.value)||0),0);
+    const c=b.items.reduce((a,i)=>a+(parseFloat(i.purchasePrice)||0),0);
+    if(ix%2===0){ doc.setFillColor(250,248,243); doc.rect(M,y,RIGHT-M,6.5,'F'); }
+    doc.setTextColor(45,40,30);doc.setFontSize(7.5);
+    doc.text(cut(b.name,52),M+3,y+4.5);
+    doc.text(String(b.items.length),M+96,y+4.5,{align:'right'});
+    doc.text(money(c),M+136,y+4.5,{align:'right'});
+    doc.text(money(v),RIGHT-3,y+4.5,{align:'right'});
+    y+=6.5;
+  });
+  doc.setDrawColor(201,168,76);doc.setLineWidth(0.5);doc.line(M,y,RIGHT,y); y+=5;
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(35,30,20);
+  doc.text('TOTAL',M+3,y);
+  doc.text(String(db.items.length),M+96,y,{align:'right'});
+  doc.text(money(grandCost),M+136,y,{align:'right'});
+  doc.text(money(grandVal),RIGHT-3,y,{align:'right'});
+
+  // Disclaimer
+  const dy=PH-46;
+  doc.setFillColor(248,245,236);doc.setDrawColor(220,210,180);doc.setLineWidth(0.3);
+  doc.rect(M,dy,RIGHT-M,30,'FD');
+  doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(120,95,30);
+  doc.text('Important',M+4,dy+6);
+  doc.setFont('helvetica','normal');doc.setTextColor(90,84,72);
+  const disc='This schedule is a self-declared inventory compiled by the collection owner from their own records. Values shown are the owner’s own estimates unless separately documented, and do not constitute a professional, independent or certified valuation. Photographs are included as evidence of ownership and condition as at the date of generation. Check your insurer’s requirements — high-value items often require a separate professional appraisal.';
+  doc.text(doc.splitTextToSize(disc,RIGHT-M-8),M+4,dy+11);
+
+  // ══ ITEMISED SCHEDULE ══
+  const CX={n:M, item:M+8, cat:M+62, cond:M+86, acq:M+106, cost:M+148, val:M+172, ref:M+174};
+  function tableHead(yy){
+    doc.setFillColor(45,40,28);doc.rect(M,yy,RIGHT-M,7,'F');
+    doc.setFontSize(6.8);doc.setFont('helvetica','bold');doc.setTextColor(232,214,160);
+    doc.text('#',CX.n+1,yy+4.7);
+    doc.text('Item',CX.item,yy+4.7);
+    doc.text('Category',CX.cat,yy+4.7);
+    doc.text('Condition',CX.cond,yy+4.7);
+    doc.text('Acquired',CX.acq,yy+4.7);
+    doc.text('Purchase',CX.cost,yy+4.7,{align:'right'});
+    doc.text('Est. value',RIGHT-1,yy+4.7,{align:'right'});
+    return yy+7;
+  }
+  nextPage();
+  doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
+  doc.text('Itemised schedule',M,20);
+  y=26;
+  let seq=0;
+  for(const b of buckets){
+    if(y>PH-40){ nextPage(); y=20; }
+    doc.setFontSize(9.5);doc.setFont('helvetica','bold');doc.setTextColor(120,95,30);
+    doc.text(b.name,M,y+4); y+=7;
+    y=tableHead(y);
+    doc.setFont('helvetica','normal');doc.setFontSize(7);
+    let rowIx=0;
+    for(const it of b.items){
+      if(y>PH-20){ nextPage(); y=20; y=tableHead(y); doc.setFont('helvetica','normal');doc.setFontSize(7); }
+      seq++; rowIx++;
+      if(rowIx%2===0){ doc.setFillColor(250,248,243); doc.rect(M,y,RIGHT-M,6,'F'); }
+      doc.setTextColor(45,40,30);
+      doc.text(String(seq),CX.n+1,y+4.2);
+      doc.text(cut(it.name,34),CX.item,y+4.2);
+      doc.text(cut(it.category,14),CX.cat,y+4.2);
+      doc.text(cut(it.condition,11),CX.cond,y+4.2);
+      doc.text(cut(it.obtainedDate,12),CX.acq,y+4.2);
+      doc.text(money(it.purchasePrice),CX.cost,y+4.2,{align:'right'});
+      doc.text(money(it.value),RIGHT-1,y+4.2,{align:'right'});
+      y+=6;
+    }
+    const sv=b.items.reduce((a,i)=>a+(parseFloat(i.value)||0),0);
+    const sc=b.items.reduce((a,i)=>a+(parseFloat(i.purchasePrice)||0),0);
+    doc.setDrawColor(210,200,175);doc.setLineWidth(0.3);doc.line(M,y,RIGHT,y);
+    doc.setFont('helvetica','bold');doc.setFontSize(7.2);doc.setTextColor(35,30,20);
+    doc.text('Subtotal — '+cut(b.name,30)+' ('+b.items.length+' items)',CX.item,y+5);
+    doc.text(money(sc),CX.cost,y+5,{align:'right'});
+    doc.text(money(sv),RIGHT-1,y+5,{align:'right'});
+    y+=12;
+  }
+  if(y>PH-26){ nextPage(); y=22; }
+  doc.setFillColor(45,40,28);doc.rect(M,y,RIGHT-M,9,'F');
+  doc.setFont('helvetica','bold');doc.setFontSize(8.5);doc.setTextColor(232,214,160);
+  doc.text('GRAND TOTAL — '+db.items.length+' items',CX.item,y+6);
+  doc.text(money(grandCost),CX.cost,y+6,{align:'right'});
+  doc.text(money(grandVal),RIGHT-1,y+6,{align:'right'});
+
+  // ══ PHOTO EVIDENCE ══
+  const withPhoto=db.items.filter(i=>(i.photos||[]).filter(p=>p).length);
+  if(withPhoto.length){
+    nextPage();
+    doc.setFontSize(13);doc.setFont('helvetica','bold');doc.setTextColor(35,30,20);
+    doc.text('Photographic evidence',M,20);
+    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(110,104,92);
+    doc.text('One representative photograph per item, as at '+dateStr+'.',M,25.5);
+    const PWD=42, PHT=32, GAP=4;
+    let px=M, py=32, colIx=0;
+    for(const it of withPhoto){
+      if(py+PHT+9>PH-14){ nextPage(); py=20; px=M; colIx=0; }
+      const src=(it.photos||[]).filter(p=>p)[0];
+      try{ doc.addImage(src,'JPEG',px,py,PWD,PHT); }
+      catch(e){ doc.setFillColor(240,238,232);doc.rect(px,py,PWD,PHT,'F'); }
+      doc.setDrawColor(215,205,180);doc.setLineWidth(0.3);doc.rect(px,py,PWD,PHT,'S');
+      doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(55,50,40);
+      doc.text(cut(it.name,26),px,py+PHT+3.5);
+      doc.setTextColor(140,110,40);
+      doc.text(money(it.value),px,py+PHT+7);
+      colIx++; px+=PWD+GAP;
+      if(colIx===4){ colIx=0; px=M; py+=PHT+11; }
+    }
+  }
+
+  footer();
+  doc.save('Hoardr-Insurance-Schedule-'+now.toISOString().slice(0,10)+'.pdf');
+  showToast('Insurance schedule ready','🛡');
+  }catch(err){ showToast('Report failed: '+err.message,'⚠️'); }
 }
 
 // ─────────────────────────────────────────────────────────────
