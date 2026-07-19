@@ -3052,7 +3052,7 @@ async function exportInsuranceReport(){
     doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(110,104,92);
     doc.text('Arranged by collection and group, matching the itemised schedule. Each photograph is labelled',M,29);
     doc.text('with its schedule reference — e.g. A-12 is item 12. Taken as at '+dateStr+'.',M,33);
-    const PWD=42, PHT=32, GAP=4;
+    const PWD=42, PHT=32, GAP=4, BADGE_H=5.2, CELL_H=5.2+1+32+8;
     y=40;
     for(const sec of annex){
       ensure(30);
@@ -3061,30 +3061,32 @@ async function exportInsuranceReport(){
       doc.text(cut(sec.name,52),M+3,y+5.6);
       y+=11;
       for(const g of sec.groups){
-        ensure(PHT+22);
+        ensure(CELL_H+12);
         doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(60,54,42);
         doc.text(cut(g.name,60),M+2,y+3.5);
         y+=6;
         let px=M, colIx=0;
         for(const it of g.items){
-          if(y+PHT+13>PH-16){ nextPage(); y=20; px=M; colIx=0; }
+          if(y+CELL_H>PH-16){ nextPage(); y=20; px=M; colIx=0; }
           const no=itemNo.get(it.id);
           const src=(it.photos||[]).filter(p=>p)[0];
-          try{ doc.addImage(src,'JPEG',px,y,PWD,PHT); }
-          catch(e){ doc.setFillColor(240,238,232);doc.rect(px,y,PWD,PHT,'F'); }
-          doc.setDrawColor(215,205,180);doc.setLineWidth(0.3);doc.rect(px,y,PWD,PHT,'S');
-          doc.setFillColor(45,40,28);doc.rect(px,y,14,5.2,'F');
+          // Reference tab sits ABOVE the photo so it never obscures the item
+          doc.setFillColor(45,40,28);doc.rect(px,y,16,BADGE_H,'F');
           doc.setFontSize(6.2);doc.setFont('helvetica','bold');doc.setTextColor(232,214,160);
-          doc.text('A-'+no,px+1.6,y+3.7);
+          doc.text('A-'+no,px+2,y+3.7);
+          const iy=y+BADGE_H+1;
+          try{ doc.addImage(src,'JPEG',px,iy,PWD,PHT); }
+          catch(e){ doc.setFillColor(240,238,232);doc.rect(px,iy,PWD,PHT,'F'); }
+          doc.setDrawColor(215,205,180);doc.setLineWidth(0.3);doc.rect(px,iy,PWD,PHT,'S');
           doc.setFontSize(6);doc.setFont('helvetica','bold');doc.setTextColor(45,40,30);
-          doc.text(cut(it.name,25),px,y+PHT+3.5);
+          doc.text(cut(it.name,25),px,iy+PHT+3.5);
           doc.setFont('helvetica','normal');doc.setTextColor(140,110,40);
           const extra=photoCountOf(it)>1?('  (+'+(photoCountOf(it)-1)+' more on file)'):'';
-          doc.text(money(it.value)+extra,px,y+PHT+7);
+          doc.text(money(it.value)+extra,px,iy+PHT+7);
           colIx++; px+=PWD+GAP;
-          if(colIx===4){ colIx=0; px=M; y+=PHT+13; }
+          if(colIx===4){ colIx=0; px=M; y+=CELL_H; }
         }
-        if(colIx!==0){ y+=PHT+13; }
+        if(colIx!==0){ y+=CELL_H; }
         y+=3;
       }
       y+=3;
