@@ -1105,7 +1105,53 @@ function checkSoldPrices(){
   if(!item||!item.name){ showToast('Open an item first','⚠️'); return; }
   window.open('https://www.ebay.com/sch/i.html?_nkw='+encodeURIComponent(item.name)+'&LH_Sold=1&LH_Complete=1','_blank');
 }
-let editPhotoData = [];   // { url: string, isNew: bool, file?: File }
+let editPhotoData = [];   // { url: <original photo value>, isNew: bool, file?: File }
+
+// ═══════════════════════════════════════════════════════════
+// Photo dual-read layer  (migration step 1 — behaviour-neutral)
+// ═══════════════════════════════════════════════════════════
+// Photos are moving from base64 strings held inside the Firestore item
+// document to {thumb,url,path} objects backed by Firebase Storage.
+// Everything that reads a photo goes through these helpers, which accept
+// EITHER shape, so both can coexist while a backfill runs.
+//
+// While every photo is still a string these are pass-throughs and the app
+// behaves exactly as it did before. Nothing here writes data.
+function photoSrc(p){          // small: cards, table rows, strips, edit grid
+  if(!p) return '';
+  return typeof p==='string' ? p : (p.thumb||p.url||'');
+}
+function photoFull(p){         // large: detail hero, exports
+  if(!p) return '';
+  return typeof p==='string' ? p : (p.url||p.thumb||'');
+}
+function photoPath(p){         // Storage object path — needed for deletes later
+  return (p && typeof p==='object' && p.path) ? p.path : '';
+}
+// jsPDF's addImage and compressForExcel need real pixel data; neither can
+// fetch an https:// URL. This always resolves to a data: URL.
+// NOTE: once photos are Storage URLs this requires bucket CORS plus
+// crossOrigin='anonymous', or the canvas is tainted and toDataURL throws.
+// Resolves to '' on any failure so a broken photo never aborts an export.
+function photoToDataUrl(p){
+  const src=photoFull(p);
+  return new Promise(resolve=>{
+    if(!src){ resolve(''); return; }
+    if(src.indexOf('data:')===0){ resolve(src); return; }   // already inline
+    const img=new Image();
+    img.crossOrigin='anonymous';
+    img.onload=()=>{
+      try{
+        const c=document.createElement('canvas');
+        c.width=img.naturalWidth; c.height=img.naturalHeight;
+        c.getContext('2d').drawImage(img,0,0);
+        resolve(c.toDataURL('image/jpeg',0.92));
+      }catch(e){ resolve(''); }
+    };
+    img.onerror=()=>resolve('');
+    img.src=src;
+  });
+}
 let currentUser = null;
 let firebaseMode = false;
 let firestoreDb = null, auth = null, storage = null;
@@ -1617,7 +1663,9 @@ function openEditItem(id) {
   setMaterialField(item.material||'');
   document.getElementById('fRating').value = item.rating||0;
   setRatingDisplay(item.rating||0);
-  editPhotoData = (item.photos||[]).map(url=>({url, isNew:false}));
+  // url keeps the ORIGINAL photo value (string or object) so the save path
+  // round-trips it untouched; display goes through photoSrc().
+  editPhotoData = (item.photos||[]).map(p=>({url:p, isNew:false}));
   renderPhotoGrid();
   updateCatFields();
   if (item.extraFields) item.extraFields.forEach(f=>addExtraField(f.label,f.value));
@@ -1941,7 +1989,7 @@ function renderContent() {
 
 function renderCard(item) {
   const photos=(item.photos||[]).filter(p=>p);
-  const thumbHtml=photos.length?`<div class="card-photo"><img src="${photos[0]}" alt="${escH(item.name)}" loading="lazy"></div>`:`<div class="card-photo">${catEmoji(item.category)}</div>`;
+  const thumbHtml=photos.length?`<div class="card-photo"><img src="${photoSrc(photos[0])}" alt="${escH(item.name)}" loading="lazy"></div>`:`<div class="card-photo">${catEmoji(item.category)}</div>`;
   const grp=item.groupId?db.groups.find(g=>g.id===item.groupId):null;
   const groupName=grp?grp.name:'';
   const collectionName=grp&&grp.collectionId?(db.collections.find(c=>c.id===grp.collectionId)||{}).name||'':'';
@@ -1970,7 +2018,7 @@ function renderCard(item) {
 
 function renderTableRow(item) {
   const photos=(item.photos||[]).filter(p=>p);
-  const thumbHtml=photos.length?`<div class="td-thumb"><img src="${photos[0]}" loading="lazy"></div>`:`<div class="td-thumb">${catEmoji(item.category)}</div>`;
+  const thumbHtml=photos.length?`<div class="td-thumb"><img src="${photoSrc(photos[0])}" loading="lazy"></div>`:`<div class="td-thumb">${catEmoji(item.category)}</div>`;
   const grpR=item.groupId?db.groups.find(g=>g.id===item.groupId):null;
   const groupName=grpR?grpR.name:'—';
   const collNameR=grpR&&grpR.collectionId?(db.collections.find(c=>c.id===grpR.collectionId)||{}).name||'':'';
@@ -2005,8 +2053,8 @@ function viewItem(id) {
   const photos=(item.photos||[]).filter(p=>p);
   const groupName=item.groupId?(db.groups.find(g=>g.id===item.groupId)||{}).name||'':'';
   let heroHtml = photos.length
-    ? `<div class="detail-photo-hero" id="heroPhoto"><img src="${photos[0]}" id="heroImg" alt="${escH(item.name)}"></div>
-       ${photos.length>1?`<div class="detail-photo-strip">${photos.map((p,i)=>`<div class="strip-thumb${i===0?' active':''}" onclick="setHero('${p}',this)"><img src="${p}" loading="lazy"></div>`).join('')}</div>`:''}`
+    ? `<div class="detail-photo-hero" id="heroPhoto"><img src="${photoFull(photos[0])}" id="heroImg" alt="${escH(item.name)}"></div>
+       ${photos.length>1?`<div class="detail-photo-strip">${photos.map((p,i)=>`<div class="strip-thumb${i===0?' active':''}" onclick="setHero('${photoFull(p)}',this)"><img src="${photoSrc(p)}" loading="lazy"></div>`).join('')}</div>`:''}`
     : `<div class="detail-photo-hero">${catEmoji(item.category)}</div>`;
   const stars='★'.repeat(item.rating||0)+'☆'.repeat(5-(item.rating||0));
   const catSpecHtml=item.catFieldVals?Object.entries(item.catFieldVals).filter(([k,v])=>v).map(([k,v])=>`<div class="detail-field"><div class="detail-field-label">${escH(k.replace(/_/g,' '))}</div><div class="detail-field-value">${escH(v)}</div></div>`).join(''):'';
@@ -2170,7 +2218,7 @@ function renderPhotoGrid(){
   if(!grid)return;
   grid.innerHTML=editPhotoData.filter(p=>p).map((p,i)=>`
     <div class="photo-thumb">
-      <img src="${p.url}" alt="photo ${i+1}">
+      <img src="${photoSrc(p.url)}" alt="photo ${i+1}">
       <button class="del-photo" onclick="removePhoto(${i})">✕</button>
     </div>`).join('')
     +`<button class="photo-add" onclick="document.getElementById('photoUpload').click()"><span class="add-icon">＋</span><span>Add</span></button>`;
@@ -2569,7 +2617,7 @@ async function exportExcel(){
       for(const item of db.items.filter(i=>i.groupId===grp.id)){
         const photos=(item.photos||[]).filter(p=>p);
         for(let pi=0;pi<photos.length;pi++){
-          const c=(await compressForExcel(photos[pi]))||'';
+          const c=(await compressForExcel(await photoToDataUrl(photos[pi])))||'';
           if(!c) continue;
           hasPhotos=true;
           photoRows.push([col.name,grp.name,item.name,'Photo '+(pi+1),
@@ -3127,7 +3175,7 @@ async function exportInsuranceReport(){
         for(const it of g.items){
           if(y+CELL_H>PH-16){ nextPage(); y=20; px=M; colIx=0; }
           const no=itemNo.get(it.id);
-          const src=(it.photos||[]).filter(p=>p)[0];
+          const src=await photoToDataUrl((it.photos||[]).filter(p=>p)[0]);
           // Reference tab sits ABOVE the photo so it never obscures the item
           doc.setFillColor(45,40,28);doc.rect(px,y,16,BADGE_H,'F');
           doc.setFontSize(6.2);doc.setFont('helvetica','bold');doc.setTextColor(232,214,160);
@@ -3273,6 +3321,9 @@ async function exportPDF(){
       for(const item of gItems){
         const photos=inclPhotos?(item.photos||[]).filter(p=>p):[];
         const nPhotos=photos.length;
+        // jsPDF cannot fetch a URL, so resolve each photo to a data: URL up
+        // front. While photos are base64 strings this returns them unchanged.
+        const photoData=[]; for(const _p of photos) photoData.push(await photoToDataUrl(_p));
 
         // Detail lines are built up-front so the row can be sized to its real
         // content instead of always reserving a full 28mm text block.
@@ -3298,7 +3349,7 @@ async function exportPDF(){
         const THUMB_W=30, THUMB_H=26;
         if(nPhotos>0){
           try{
-            doc.addImage(photos[0],'JPEG',M+1,startY+1,THUMB_W,THUMB_H);
+            doc.addImage(photoData[0],'JPEG',M+1,startY+1,THUMB_W,THUMB_H);
           }catch(err){}
           // photo count badge
           if(nPhotos>1){
@@ -3370,7 +3421,7 @@ async function exportPDF(){
             if(px+GPHOTO_W>PW-M){px=M+3;}
             try{
               pdfRoundRect(doc,px,galleryY+(Math.floor((pi-1)/4)*(GPHOTO_H+GPHOTO_GAP)),GPHOTO_W,GPHOTO_H,1,[35,31,20],null);
-              doc.addImage(photos[pi],'JPEG',px,galleryY+(Math.floor((pi-1)/4)*(GPHOTO_H+GPHOTO_GAP)),GPHOTO_W,GPHOTO_H);
+              doc.addImage(photoData[pi],'JPEG',px,galleryY+(Math.floor((pi-1)/4)*(GPHOTO_H+GPHOTO_GAP)),GPHOTO_W,GPHOTO_H);
             }catch(err){}
             px+=GPHOTO_W+GPHOTO_GAP;
           }
@@ -3563,38 +3614,72 @@ async function loadFromBackup(e) {
         showToast('Invalid backup file format','⚠️');
         return;
       }
-      if (!confirm(`Import backup from ${data.exportDate ? new Date(data.exportDate).toLocaleDateString() : 'unknown date'}? This will ADD ${data.items.length} items, ${data.groups.length} groups, and ${data.collections.length} collections (no duplicates by ID).`)) return;
+      if (!confirm(`Import backup from ${data.exportDate ? new Date(data.exportDate).toLocaleDateString() : 'unknown date'}?\n\nBackup contains ${data.items.length} items, ${data.groups.length} groups and ${data.collections.length} collections.`)) return;
+
+      // Records already present are, by default, left alone (add-only). That can't
+      // repair a record that exists but is WRONG — so offer a true restore as well.
+      const exCols  = data.collections.filter(c => db.collections.find(x => x.id === c.id)).length;
+      const exGrps  = data.groups.filter(g => db.groups.find(x => x.id === g.id)).length;
+      const exItems = data.items.filter(i => db.items.find(x => x.id === i.id)).length;
+      const overlap = exCols + exGrps + exItems;
+      let overwrite = false;
+      if (overlap) {
+        overwrite = confirm(
+          overlap + ' record(s) from this backup already exist in your collection.\n\n' +
+          'OK = RESTORE — replace those records with the backup versions.\n' +
+          '   Use this to undo unwanted changes or recover from a bad edit.\n\n' +
+          'Cancel = ADD ONLY — keep what you have now, and just add anything missing.'
+        );
+      }
 
       let addedItems = 0, addedGroups = 0, addedCols = 0;
+      let repItems = 0, repGroups = 0, repCols = 0;
       if (firebaseMode) {
         setSyncStatus('syncing');
         for (const col of data.collections) {
-          if (!db.collections.find(c => c.id === col.id)) {
+          const exists = !!db.collections.find(c => c.id === col.id);
+          if (!exists || overwrite) {
             await firestoreDb.collection(`${userPath()}/collections`).doc(col.id).set(col);
-            addedCols++;
+            exists ? repCols++ : addedCols++;
           }
         }
         for (const g of data.groups) {
-          if (!db.groups.find(x => x.id === g.id)) {
+          const exists = !!db.groups.find(x => x.id === g.id);
+          if (!exists || overwrite) {
             await firestoreDb.collection(`${userPath()}/groups`).doc(g.id).set(g);
-            addedGroups++;
+            exists ? repGroups++ : addedGroups++;
           }
         }
         for (const item of data.items) {
-          if (!db.items.find(x => x.id === item.id)) {
+          const exists = !!db.items.find(x => x.id === item.id);
+          if (!exists || overwrite) {
             await firestoreDb.collection(`${userPath()}/items`).doc(item.id).set(item);
-            addedItems++;
+            exists ? repItems++ : addedItems++;
           }
         }
         setSyncStatus('synced');
       } else {
-        data.collections.forEach(col => { if (!db.collections.find(c => c.id === col.id)) { db.collections.push(col); addedCols++; } });
-        data.groups.forEach(g => { if (!db.groups.find(x => x.id === g.id)) { db.groups.push(g); addedGroups++; } });
-        data.items.forEach(item => { if (!db.items.find(x => x.id === item.id)) { db.items.push(item); addedItems++; } });
+        data.collections.forEach(col => {
+          const ix = db.collections.findIndex(c => c.id === col.id);
+          if (ix === -1) { db.collections.push(col); addedCols++; }
+          else if (overwrite) { db.collections[ix] = col; repCols++; }
+        });
+        data.groups.forEach(g => {
+          const ix = db.groups.findIndex(x => x.id === g.id);
+          if (ix === -1) { db.groups.push(g); addedGroups++; }
+          else if (overwrite) { db.groups[ix] = g; repGroups++; }
+        });
+        data.items.forEach(item => {
+          const ix = db.items.findIndex(x => x.id === item.id);
+          if (ix === -1) { db.items.push(item); addedItems++; }
+          else if (overwrite) { db.items[ix] = item; repItems++; }
+        });
         saveLocal(); render();
       }
       populateGroupSelect(); populateCollectionSelect();
-      showToast(`Loaded: ${addedItems} items, ${addedGroups} groups, ${addedCols} collections added`, '💾');
+      const addTxt = `${addedItems} items, ${addedGroups} groups, ${addedCols} collections added`;
+      const repTxt = (repItems + repGroups + repCols) ? ` · ${repItems} items, ${repGroups} groups, ${repCols} collections restored` : '';
+      showToast('Loaded: ' + addTxt + repTxt, '💾');
     } catch(err) { showToast('Load failed: ' + err.message, '⚠️'); }
   };
   reader.readAsText(file);
