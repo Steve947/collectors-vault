@@ -250,6 +250,11 @@ textarea{resize:vertical;min-height:75px}
 .modal-overlay.open .modal-box{transform:scale(1)}
 .modal-title{font-family:'Playfair Display',serif;font-size:19px;color:var(--gold2);font-weight:700;margin-bottom:18px}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+.pdf-choice{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .18s ease;font-family:'IBM Plex Sans',sans-serif}
+.pdf-choice:hover{border-color:var(--gold);background:rgba(201,168,76,.06);transform:translateY(-1px)}
+.pdf-choice-ic{font-size:20px;line-height:1.2}
+.pdf-choice b{display:block;color:var(--gold2);font-size:14px;font-weight:600;margin-bottom:3px}
+.pdf-choice small{display:block;color:var(--text3);font-size:11.5px;line-height:1.5}
 
 /* toast */
 .toast{position:fixed;bottom:22px;right:22px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;padding:11px 18px;font-size:13px;color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,.5);transform:translateY(10px);opacity:0;transition:all .3s;pointer-events:none;z-index:999;display:flex;align-items:center;gap:8px}
@@ -582,8 +587,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <button class="btn btn-outline" onclick="openCollectionModal();toggleMobileMenu()">＋ Collection</button>
     <button class="btn btn-outline" onclick="openGroupModal();toggleMobileMenu()">＋ Group</button>
     <button class="btn btn-outline" onclick="showCollectionSummary();toggleMobileMenu()">📊 Summary</button>
-    <button class="btn btn-outline" onclick="exportPDF();toggleMobileMenu()">📄 Export PDF</button>
-    <button class="btn btn-outline" onclick="exportInsuranceReport();toggleMobileMenu()">🛡 Insurance Report</button>
+    <button class="btn btn-outline" onclick="openPdfChooser();toggleMobileMenu()">📄 Export PDF</button>
     <button class="btn btn-outline" onclick="exportExcel();toggleMobileMenu()">📊 Export Excel</button>
     <label class="btn btn-outline" style="cursor:pointer;justify-content:center">
       📂 Import Excel
@@ -715,8 +719,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <div class="io-strip">
       <div class="io-group">
         <button class="btn btn-outline btn-sm" onclick="exportExcel()">📊 Export Excel</button>
-        <button class="btn btn-outline btn-sm" onclick="exportPDF()">📄 Export PDF</button>
-        <button class="btn btn-outline btn-sm" onclick="exportInsuranceReport()">🛡 Insurance Report</button>
+        <button class="btn btn-outline btn-sm" onclick="openPdfChooser()">📄 Export PDF</button>
         <label class="btn btn-outline btn-sm" style="cursor:pointer">
           📂 Import Excel
           <input type="file" id="importExcel" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
@@ -902,6 +905,31 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
 </div>
 
 <!-- COLLECTION MODAL -->
+<div class="modal-overlay" id="pdfChoiceModal" onclick="closeIfBg(event,'pdfChoiceModal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">Export a PDF</div>
+    <p style="color:var(--text3);font-size:12px;margin:-8px 0 16px">Choose which kind of document you need.</p>
+
+    <button class="pdf-choice" onclick="closeModal('pdfChoiceModal');exportPDF()">
+      <span class="pdf-choice-ic">📄</span>
+      <span>
+        <b>Catalogue</b>
+        <small>A visual record of your collection — cover page, collections, groups and photo galleries. Good for browsing or showing off.</small>
+      </span>
+    </button>
+
+    <button class="pdf-choice" id="pdfChoiceInsurance" onclick="closeModal('pdfChoiceModal');exportInsuranceReport()">
+      <span class="pdf-choice-ic">🛡</span>
+      <span>
+        <b>Insurance schedule <span id="pdfInsLock" style="display:none;font-size:10px;color:var(--gold2);letter-spacing:.08em">· PRO</span></b>
+        <small>A formal, itemised document for your insurer — values, totals, declaration and cross-referenced photo annexure. Printable.</small>
+      </span>
+    </button>
+
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('pdfChoiceModal')">Cancel</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="collectionModal" onclick="closeIfBg(event,'collectionModal')">
   <div class="modal-box" onclick="event.stopPropagation()">
     <div class="modal-title" id="collectionModalTitle">New Collection</div>
@@ -1114,7 +1142,7 @@ function initFirebase() {
     document.getElementById('cloudBadge').textContent = '☁ CLOUD';
     document.getElementById('modeLabel').textContent = 'Cloud Sync';
     // Log current domain for debugging
-    console.log('Collector Vault running on domain:', window.location.hostname);
+    console.log('Hoardr running on domain:', window.location.hostname);
     setupAuthListener();
   } catch(e) {
     console.error('Firebase init error:', e);
@@ -1260,6 +1288,19 @@ function switchAuthTab(tab) {
 function authError(msg) {
   const el = document.getElementById('authError');
   el.textContent = msg; el.style.display = 'block';
+  el.style.borderColor=''; el.style.color=''; el.style.background='';
+}
+// Informational (not an error) message in the same slot
+function authNote(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg; el.style.display = 'block';
+  el.style.borderColor='var(--border2)'; el.style.color='var(--text2)'; el.style.background='rgba(201,168,76,.06)';
+}
+// Does this account actually have an email/password credential?
+// Google-only accounts have nothing to reset — Firebase won't tell the client,
+// so we check the signed-in user's providers where we can.
+function hasPasswordProvider(u){
+  return !!(u && (u.providerData||[]).some(p=>p && p.providerId==='password'));
 }
 
 async function signIn() {
@@ -1277,8 +1318,7 @@ async function resetPassword() {
   if (!email) { authError('Enter your email above, then click “Forgot password?” again.'); return; }
   try {
     await auth.sendPasswordResetEmail(email);
-    document.getElementById('authError').style.display='none';
-    showToast('Password reset email sent to ' + email, '✉️');
+    authNote('If ' + email + ' has a password, a reset link is on its way — check your inbox and spam folder. If you signed up with Google, use “Continue with Google” below instead: Google accounts have no password to reset.');
   } catch(e) { authError(friendlyAuthError(e)); }
 }
 async function signUp() {
@@ -2046,7 +2086,7 @@ const CAT_FIELDS = {
     {key:'dc_serial_no',label:'Serial / Model No',placeholder:'e.g. 55199'},
     {key:'dc_box',label:'Has Original Box',placeholder:'Y / N',type:'select',opts:['Y','N']},
     {key:'dc_packaging',label:'Packaging Condition',placeholder:'e.g. Mint in Box',type:'select',opts:DC_PACKAGING},
-    {key:'dc_total_cost_aud',label:'Total Cost AUD ($)',placeholder:'0.00'},
+    {key:'dc_total_cost_aud',label:'Total Cost',placeholder:'0.00'},
     {key:'dc_purchase_location',label:'Purchase Location',placeholder:'e.g. Aust, USA, UK',type:'select',opts:DC_LOCATIONS},
     {key:'dc_storage_box',label:'Storage Box No',placeholder:'e.g. 26'},
     {key:'dc_series',label:'Series / Edition',placeholder:'e.g. Limited Ed. #42 of 500'},
@@ -2273,6 +2313,8 @@ function openProfile(){
     if(!_cs.options.length) _cs.innerHTML=CURRENCIES.map(c=>`<option value="${c.code}">${escH(c.label)}</option>`).join('');
     _cs.value=curCode();
   }
+  const _pr=document.getElementById('pfPasswordRow');
+  if(_pr) _pr.style.display = hasPasswordProvider(currentUser) ? '' : 'none';
   const isGoogle=(currentUser.providerData||[]).some(pr=>pr&&pr.providerId==='google.com');
   document.getElementById('pfPasswordRow').style.display=isGoogle?'none':'block';
   const vr=document.getElementById('pfVerifyRow');
@@ -2293,6 +2335,9 @@ async function saveProfile(){
 }
 async function changePasswordEmail(){
   if(!currentUser||!currentUser.email) return;
+  if(!hasPasswordProvider(currentUser)){
+    showToast('You sign in with Google — there is no password to reset','ℹ️'); return;
+  }
   try{ await auth.sendPasswordResetEmail(currentUser.email); showToast('Password reset email sent to '+currentUser.email,'✉️'); }
   catch(e){ showToast('Failed — '+((e&&e.message)||e),'⚠️'); }
 }
@@ -2402,7 +2447,7 @@ async function exportExcel(){
 
   // ── Sheet 1: Summary ──────────────────────────────────────
   const summaryRows=[
-    ['COLLECTORS VAULT — EXPORT','','','',''],
+    ['HOARDR — COLLECTION EXPORT','','','',''],
     ['Generated',new Date().toLocaleString(),'','',''],
     ['Collections',db.collections.length,'','',''],
     ['Groups',db.groups.length,'','',''],
@@ -3119,7 +3164,7 @@ async function exportPDF(){
     doc.setDrawColor(82,74,42);doc.setLineWidth(0.3);doc.line(0,9,PW,9);
     doc.setFontSize(6.5);doc.setFont('helvetica','normal');
     doc.setTextColor(120,110,80);
-    doc.text("Collector's Vault",M,6.5);
+    doc.text('Hoardr',M,6.5);
     if(centre)doc.text(centre,PW/2,6.5,{align:'center'});
     doc.text(dateStr,PW-M,6.5,{align:'right'});
   }
@@ -3443,7 +3488,7 @@ function showCollectionSummary() {
         </div>
         <div style="background:var(--surface);border-radius:6px;padding:8px;text-align:center">
           <div style="font-family:'IBM Plex Mono',monospace;font-size:14px;color:var(--rust2);font-weight:700">${fmtMoney(s.totalCost)}</div>
-          <div style="font-size:10px;color:var(--text3);margin-top:2px">Total Cost AUD</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">Total Cost (${curCode()})</div>
         </div>
       </div>`;
     if (s.groups.length) {
@@ -3548,7 +3593,7 @@ async function loadFromBackup(e) {
 async function shareCollection() {
   const summary = getCollectionSummary();
   const grandTotal = db.items.reduce((a,i)=>a+parseFloat(i.value||0),0);
-  const shareText = `My Collector's Vault\n${db.items.length} items across ${db.collections.length} collections\nEst. total value: ${fmtMoney(grandTotal)} AUD\n\nCollections:\n` +
+  const shareText = `My Hoardr collection\n${db.items.length} items across ${db.collections.length} collections\nEst. total value: ${fmtMoney(grandTotal)} ${curCode()}\n\nCollections:\n` +
     db.collections.map(col => {
       const s = summary[col.id];
       return `• ${col.name}: ${s.itemCount} items (${fmtMoney(s.totalValue)})`;
@@ -3556,7 +3601,7 @@ async function shareCollection() {
   
   if (navigator.share) {
     try {
-      await navigator.share({ title: "My Collector's Vault", text: shareText });
+      await navigator.share({ title: 'My Hoardr collection', text: shareText });
     } catch(e) { if(e.name !== 'AbortError') copyToClipboard(shareText); }
   } else {
     copyToClipboard(shareText);
@@ -3732,6 +3777,11 @@ async function restoreItem(item){
     db.items.push(item); saveLocal(); render();
   }
   showToast('Item restored','↩');
+}
+function openPdfChooser(){
+  const lock=document.getElementById('pdfInsLock');
+  if(lock) lock.style.display = isPro() ? 'none' : 'inline';
+  openModal('pdfChoiceModal');
 }
 function openPanel(id){document.getElementById(id).classList.add('open');document.body.style.overflow='hidden';}
 function closePanel(id){document.getElementById(id).classList.remove('open');document.body.style.overflow='';}
