@@ -1133,11 +1133,27 @@ function photoPath(p){         // Storage object path — needed for deletes lat
 // NOTE: once photos are Storage URLs this requires bucket CORS plus
 // crossOrigin='anonymous', or the canvas is tainted and toDataURL throws.
 // Resolves to '' on any failure so a broken photo never aborts an export.
-function photoToDataUrl(p){
-  const src=photoFull(p);
-  return new Promise(resolve=>{
-    if(!src){ resolve(''); return; }
-    if(src.indexOf('data:')===0){ resolve(src); return; }   // already inline
+// Full image written to Storage; tiny thumbnail kept inline in Firestore so
+// lists render instantly and still work offline.
+const PHOTO_FULL_PX = 1200, PHOTO_FULL_Q = 0.75;
+const PHOTO_THUMB_PX = 120,  PHOTO_THUMB_Q = 0.5;
+
+// Resolve any photo to a data: URL. Tries a plain fetch first because that
+// preserves the original bytes and never touches a canvas (so it cannot be
+// tainted). Falls back to a canvas draw, then to the stored thumbnail, so an
+// export degrades rather than hard-failing on one bad photo.
+async function photoToDataUrl(p){
+  const src = photoFull(p);
+  if(!src) return '';
+  if(src.indexOf('data:')===0) return src;              // already inline
+  try{
+    const res = await fetch(src, {mode:'cors'});
+    if(res.ok){
+      const blob = await res.blob();
+      return await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.onerror=()=>r(''); fr.readAsDataURL(blob); });
+    }
+  }catch(e){ /* CORS or offline — try the canvas route */ }
+  const viaCanvas = await new Promise(resolve=>{
     const img=new Image();
     img.crossOrigin='anonymous';
     img.onload=()=>{
@@ -1151,6 +1167,69 @@ function photoToDataUrl(p){
     img.onerror=()=>resolve('');
     img.src=src;
   });
+  if(viaCanvas) return viaCanvas;
+  const thumb = photoSrc(p);                            // last resort: low-res but not blank
+  return (thumb && thumb.indexOf('data:')===0) ? thumb : '';
+}
+
+// Build the two variants we store for a newly added photo.
+function makePhotoVariants(file){
+  return new Promise(resolve=>{
+    const reader=new FileReader();
+    reader.onerror=()=>resolve(null);
+    reader.onload=ev=>{
+      const img=new Image();
+      img.onerror=()=>resolve(null);
+      img.onload=()=>{
+        const scaled=maxDim=>{
+          let w=img.width,h=img.height;
+          const sc=Math.min(1,maxDim/Math.max(w,h));
+          w=Math.max(1,Math.round(w*sc)); h=Math.max(1,Math.round(h*sc));
+          const c=document.createElement('canvas'); c.width=w; c.height=h;
+          c.getContext('2d').drawImage(img,0,0,w,h);
+          return c;
+        };
+        let thumb='';
+        try{ thumb=scaled(PHOTO_THUMB_PX).toDataURL('image/jpeg',PHOTO_THUMB_Q); }catch(e){ resolve(null); return; }
+        try{ scaled(PHOTO_FULL_PX).toBlob(b=>resolve(b?{blob:b,thumb}:null),'image/jpeg',PHOTO_FULL_Q); }
+        catch(e){ resolve(null); }
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Upload one new photo. Returns {thumb,url,path} on success, or a plain base64
+// string on ANY failure (offline, rules, quota) so a photo is never lost —
+// the dual-read layer handles both shapes, so a fallback is invisible.
+async function uploadPhoto(file, itemId){
+  const legacy = () => compressImage(file, 800, 0.65);
+  if(!firebaseMode || !storage || !currentUser || !itemId) return await legacy();
+  const v = await makePhotoVariants(file);
+  if(!v || !v.blob) return await legacy();
+  try{
+    const path = `users/${currentUser.uid}/items/${itemId}/${uid()}.jpg`;
+    const ref  = storage.ref(path);
+    await ref.put(v.blob, {contentType:'image/jpeg'});
+    const url  = await ref.getDownloadURL();
+    return { thumb: v.thumb, url, path };
+  }catch(e){
+    console.warn('Photo upload failed — storing inline instead:', e && (e.code||e.message));
+    showToast('Photo saved inline (upload unavailable)','⚠️');
+    return await legacy();
+  }
+}
+
+// Recursively empty a Storage folder. Used on account deletion — without this
+// a deleted user's photos would survive in the bucket.
+async function deleteStorageFolder(path){
+  if(!storage) return;
+  try{
+    const res = await storage.ref(path).listAll();
+    await Promise.all(res.items.map(i=>i.delete().catch(()=>{})));
+    for(const pre of res.prefixes) await deleteStorageFolder(pre.fullPath);
+  }catch(e){ console.warn('Storage cleanup skipped:', e && (e.code||e.message)); }
 }
 let currentUser = null;
 let firebaseMode = false;
@@ -1704,15 +1783,27 @@ async function saveItem() {
 
   try {
     // Compress & store photos as base64 directly in Firestore (no Storage needed)
+    // A photo's Storage path needs the item id, so settle the document
+    // reference BEFORE uploading (Firestore can mint an id without writing).
+    const id = document.getElementById('editId').value;
+    let docRef = null, itemId = id;
+    if (firebaseMode) {
+      docRef = id ? firestoreDb.doc(`${userPath()}/items/${id}`)
+                  : firestoreDb.collection(`${userPath()}/items`).doc();
+      itemId = docRef.id;
+    } else if (!itemId) {
+      itemId = uid();
+    }
+
     let photoUrls = [];
     for (const p of editPhotoData) {
       if (!p) continue;
       if (p.isNew && p.file) {
-        // Compress image to max 800px wide, quality 0.7
-        const compressed = await compressImage(p.file, 800, 0.65);
-        photoUrls.push(compressed);
+        // New photos go to Storage as {thumb,url,path}; falls back to inline
+        // base64 on any failure so nothing is ever lost.
+        photoUrls.push(await uploadPhoto(p.file, itemId));
       } else {
-        photoUrls.push(p.url);
+        photoUrls.push(p.url);   // existing photo — round-tripped untouched
       }
     }
 
@@ -1759,14 +1850,13 @@ async function saveItem() {
       return;
     }
 
-    const id = document.getElementById('editId').value;
     if (firebaseMode) {
       setSyncStatus('syncing');
       if (id) {
-        await firestoreDb.doc(`${userPath()}/items/${id}`).update(itemData);
+        await docRef.update(itemData);
       } else {
         itemData.createdAt = new Date().toISOString();
-        await firestoreDb.collection(`${userPath()}/items`).add(itemData);
+        await docRef.set(itemData);   // set() not add(): the id is already minted
       }
       setSyncStatus('synced');
     } else {
@@ -1774,7 +1864,7 @@ async function saveItem() {
         const idx = db.items.findIndex(i=>i.id===id);
         if (idx>=0) db.items[idx]={...db.items[idx],...itemData}; else db.items.push({id,createdAt:new Date().toISOString(),...itemData});
       } else {
-        db.items.push({id:uid(),createdAt:new Date().toISOString(),...itemData});
+        db.items.push({id:itemId,createdAt:new Date().toISOString(),...itemData});
       }
       saveLocal(); render();
     }
@@ -2412,6 +2502,9 @@ async function deleteAccount(){
           await batch.commit();
         }
       }
+      // Photos live outside Firestore — delete them too, or they survive
+      // the account. Runs before currentUser.delete() while auth still holds.
+      await deleteStorageFolder(`users/${currentUser.uid}`);
       await currentUser.delete();
     }
     showToast('Account deleted','✓');
@@ -3577,14 +3670,28 @@ function showCollectionSummary() {
 // ═══════════════════════════════════════════════════════════
 // LOCAL SAVE / SHARE
 // ═══════════════════════════════════════════════════════════
-function saveLocally() {
-  // Export full collection as a JSON file for offline backup
+async function saveLocally() {
+  // Export full collection as a JSON file for offline backup.
+  // Photos may now live in Storage as {thumb,url,path}. A backup holding only
+  // URLs would stop being a backup the moment the account or bucket went away,
+  // so every photo is fetched and embedded as base64 — the same shape as the
+  // original format, restorable entirely on its own.
+  const needsFetch = db.items.some(i=>(i.photos||[]).some(p=>p&&typeof p!=='string'));
+  if (needsFetch) showToast('Fetching photos for a self-contained backup\u2026','\u23f3');
+  const backupItems = [];
+  for (const it of db.items) {
+    const ph = (it.photos||[]).filter(p=>p);
+    if (!ph.length) { backupItems.push(it); continue; }
+    const embedded = [];
+    for (const p of ph) { const d = await photoToDataUrl(p); if (d) embedded.push(d); }
+    backupItems.push({...it, photos: embedded});
+  }
   const exportData = {
     version: '1.0',
     exportDate: new Date().toISOString(),
     collections: db.collections,
     groups: db.groups,
-    items: db.items,
+    items: backupItems,
     stats: {
       totalItems: db.items.length,
       totalCollections: db.collections.length,
