@@ -1,17 +1,21 @@
 // Hoardr Service Worker — v1.0
-const CACHE_NAME = 'hoardr-v1';
+const CACHE_NAME = 'hoardr-v2';
+// RELATIVE paths — the site is served from the root on hoardrapp.com but from
+// /collectors-vault/ on github.io. Absolute /collectors-vault/ paths 404 on the
+// custom domain, which makes cache.addAll() reject and the worker never install.
 const ASSETS = [
-  '/collectors-vault/',
-  '/collectors-vault/index.html',
-  '/collectors-vault/manifest.json',
-  '/collectors-vault/icon-192.png',
-  '/collectors-vault/icon-512.png',
+  './',
+  './index.html',
+  './manifest.json',
+  './privacy.html',
+  './icon-192.png',
+  './icon-512.png',
 ];
 
 // Install — cache core assets
 self.addEventListener('install', event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)).catch(() => {})
   );
   self.skipWaiting();
 });
