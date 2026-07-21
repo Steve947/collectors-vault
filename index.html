@@ -502,7 +502,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
 <div id="authScreen">
   <div class="auth-box">
     <div class="auth-logo">
-      <div class="icon"><svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hoardr"><defs><radialGradient id="htA" cx="50%" cy="38%" r="75%"><stop offset="0%" stop-color="#241f14"/><stop offset="55%" stop-color="#16130b"/><stop offset="100%" stop-color="#0c0a06"/></radialGradient><linearGradient id="hgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f8ecb8"/><stop offset="32%" stop-color="#e8c96a"/><stop offset="62%" stop-color="#c9a84c"/><stop offset="100%" stop-color="#92671f"/></linearGradient><linearGradient id="hrA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e8c96a" stop-opacity=".9"/><stop offset="100%" stop-color="#7a5a1e" stop-opacity=".35"/></linearGradient></defs><rect x="16" y="16" width="480" height="480" rx="116" fill="url(#htA)"/><rect x="22.5" y="22.5" width="467" height="467" rx="110" fill="none" stroke="url(#hrA)" stroke-width="6"/><g fill="url(#hgA)"><rect x="170" y="158" width="44" height="196"/><rect x="298" y="158" width="44" height="196"/><rect x="214" y="244" width="84" height="24"/><rect x="156" y="158" width="72" height="13" rx="2"/><rect x="156" y="341" width="72" height="13" rx="2"/><rect x="284" y="158" width="72" height="13" rx="2"/><rect x="284" y="341" width="72" height="13" rx="2"/></g></svg></div>
+      <div class="icon"><svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Hoardr"><defs><radialGradient id="htA" cx="50%" cy="38%" r="75%"><stop offset="0%" stop-color="#241f14"/><stop offset="55%" stop-color="#16130b"/><stop offset="100%" stop-color="#0c0a06"/></radialGradient><linearGradient id="hgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f8ecb8"/><stop offset="30%" stop-color="#eccd72"/><stop offset="60%" stop-color="#c9a84c"/><stop offset="100%" stop-color="#8a6018"/></linearGradient><linearGradient id="hrA" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#e8c96a" stop-opacity=".95"/><stop offset="100%" stop-color="#7a5a1e" stop-opacity=".3"/></linearGradient></defs><rect x="16" y="16" width="480" height="480" rx="116" fill="url(#htA)"/><rect x="23" y="23" width="466" height="466" rx="110" fill="none" stroke="url(#hrA)" stroke-width="7"/><g fill="url(#hgA)"><rect x="178" y="168" width="46" height="176"/><rect x="288" y="168" width="46" height="176"/><rect x="224" y="243" width="64" height="26"/><rect x="158" y="168" width="86" height="20" rx="3"/><rect x="158" y="324" width="86" height="20" rx="3"/><rect x="268" y="168" width="86" height="20" rx="3"/><rect x="268" y="324" width="86" height="20" rx="3"/></g></svg></div>
       <h2>Hoardr</h2>
       <p>Sign in to access your Hoardr collection</p>
     </div>
@@ -2528,8 +2528,11 @@ async function doBulkMove(ids, gid){
   selectedIds.clear();
   showToast(`Moved ${ids.length} item(s)`,'✓');
 }
-function showOnboarding(){ const m=document.getElementById('onboardModal'); if(m) m.classList.add('open'); }
-function closeOnboarding(markSeen){ const m=document.getElementById('onboardModal'); if(m) m.classList.remove('open'); if(markSeen){ try{localStorage.setItem('hoardr_onboarded','1');}catch(e){} } }
+function showOnboarding(){ _openLayer('onboardModal', true); }
+function closeOnboarding(markSeen){
+  if(markSeen){ try{localStorage.setItem('hoardr_onboarded','1');}catch(e){} }
+  _closeLayer('onboardModal');
+}
 function maybeShowOnboarding(){ try{ if(!localStorage.getItem('hoardr_onboarded')){ showOnboarding(); localStorage.setItem('hoardr_onboarded','1'); } }catch(e){} }
 
 // ── Profile & account ──
@@ -3948,15 +3951,17 @@ function toggleDrawer(){
   const isOpen = sidebar.classList.contains('open');
   if(isOpen){ closeDrawer(); } else { openDrawer(); }
 }
+function _closeDrawerNow(){
+  const sb=document.getElementById('sidebar'); if(sb) sb.classList.remove('open');
+  const bd=document.getElementById('drawerBackdrop'); if(bd) bd.classList.remove('open');
+}
 function openDrawer(){
   document.getElementById('sidebar').classList.add('open');
   document.getElementById('drawerBackdrop').classList.add('open');
   // Don't lock body scroll — we want main content still readable
+  _pushLayer('drawer', _closeDrawerNow, false);
 }
-function closeDrawer(){
-  document.getElementById('sidebar').classList.remove('open');
-  document.getElementById('drawerBackdrop').classList.remove('open');
-}
+function closeDrawer(){ if(!_dropLayer('drawer')) _closeDrawerNow(); }
 function setActiveNav(id){
   document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
   const el = document.getElementById(id);
@@ -3998,9 +4003,15 @@ function mobileSearch(val){
   document.getElementById('mobileSearchClear').style.display = val ? 'block' : 'none';
   render();
 }
+function _closeMobileMenuNow(){ const m=document.getElementById('mobileMoreMenu'); if(m) m.style.display='none'; }
+function closeMobileMenu(){ if(!_dropLayer('mobileMoreMenu')) _closeMobileMenuNow(); }
 function toggleMobileMenu(){
   const m = document.getElementById('mobileMoreMenu');
-  m.style.display = m.style.display === 'none' ? 'block' : 'none';
+  if (!m) return;
+  if (m.style.display === 'block'){ closeMobileMenu(); return; }
+  closeAddMenu();
+  m.style.display = 'block';
+  _pushLayer('mobileMoreMenu', _closeMobileMenuNow, false);
 }
 // Close more menu when tapping outside
 document.addEventListener('click', e=>{
@@ -4090,38 +4101,53 @@ function openPdfChooser(){
 // Back on a phone (or the browser's back button) navigated away and CLOSED THE
 // WHOLE APP instead of closing the panel. Every open overlay now pushes a
 // history entry; popstate reconciles the stack against it.
-let _layers = [];   // ids of currently open overlays, oldest first
+// A "layer" is anything the Back button should dismiss: panels, modals, the
+// sidebar drawer, and the ＋ / More dropdown menus. Each registers its own
+// close function, because not everything hides the same way — some toggle a
+// CSS class, some set style.display, the drawer touches two elements.
+let _layers = [];   // [{ key, close, lock }] oldest first
 
-function _syncScrollLock(){ document.body.style.overflow = _layers.length ? 'hidden' : ''; }
+function _syncScrollLock(){
+  document.body.style.overflow = _layers.some(l => l.lock) ? 'hidden' : '';
+}
 
-function _openLayer(id){
-  const el = document.getElementById(id);
-  if (!el || _layers.includes(id)) return;
-  el.classList.add('open');
-  _layers.push(id);
+function _pushLayer(key, closeFn, lock){
+  if (_layers.some(l => l.key === key)) return;
+  _layers.push({ key: key, close: closeFn, lock: !!lock });
   _syncScrollLock();
   try { history.pushState({ hoardrDepth: _layers.length }, ''); } catch(e){}
+}
+
+// Returns false if the layer wasn't registered, so callers can fall back to
+// closing it directly.
+function _dropLayer(key){
+  const i = _layers.map(l => l.key).lastIndexOf(key);
+  if (i === -1) return false;
+  const steps = _layers.length - i;
+  try { history.go(-steps); }
+  catch(e){ _reconcileLayers(i); }
+  return true;
+}
+
+function _hideEl(id){ const el = document.getElementById(id); if (el) el.classList.remove('open'); }
+
+function _openLayer(id, lock){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('open');
+  _pushLayer(id, function(){ _hideEl(id); }, lock !== false);
 }
 
 // Closing via a button walks history back, which fires popstate, which does the
 // actual hiding — so the UI and the history stack can never drift apart.
 function _closeLayer(id){
-  const i = _layers.lastIndexOf(id);
-  if (i === -1){
-    const el = document.getElementById(id);
-    if (el) el.classList.remove('open');
-    _syncScrollLock();
-    return;
-  }
-  const steps = _layers.length - i;
-  try { history.go(-steps); }
-  catch(e){ _reconcileLayers(i); }        // history unavailable — close directly
+  if (!_dropLayer(id)) { _hideEl(id); _syncScrollLock(); }
 }
 
 function _reconcileLayers(depth){
   while (_layers.length > depth){
-    const el = document.getElementById(_layers.pop());
-    if (el) el.classList.remove('open');
+    const l = _layers.pop();
+    try { l.close(); } catch(e){}
   }
   _syncScrollLock();
 }
@@ -4136,9 +4162,9 @@ window.addEventListener('keydown', function(e){
   if (e.key === 'Escape' && _layers.length) _closeLayer(_layers[_layers.length - 1]);
 });
 
-function openPanel(id){ _openLayer(id); }
+function openPanel(id){ _openLayer(id, true); }
 function closePanel(id){ _closeLayer(id); }
-function openModal(id){ _openLayer(id); }
+function openModal(id){ _openLayer(id, true); }
 function closeModal(id){ _closeLayer(id); }
 function closeIfBg(e,id){ if(e.target.id===id) _closeLayer(id); }
 function switchTab(e,id){
@@ -4221,14 +4247,16 @@ function parseImportDim(str){
   const w=s.match(/W\s*([\d.]+)/i); if(w) out.width=w[1];
   return out;
 }
+function _closeAddMenuNow(){ const m=document.getElementById('addMenu'); if(m) m.style.display='none'; }
 function openAddMenu(){
   const m=document.getElementById('addMenu'); if(!m) return;
-  const isOpen=m.style.display==='block';
-  const mm=document.getElementById('mobileMoreMenu'); if(mm) mm.style.display='none';
-  m.style.display=isOpen?'none':'block';
+  if(m.style.display==='block'){ closeAddMenu(); return; }
+  closeMobileMenu();
+  m.style.display='block';
   setActiveNav('bnavAdd');
+  _pushLayer('addMenu', _closeAddMenuNow, false);
 }
-function closeAddMenu(){ const m=document.getElementById('addMenu'); if(m) m.style.display='none'; }
+function closeAddMenu(){ if(!_dropLayer('addMenu')) _closeAddMenuNow(); }
 function onCategoryChange(){
   const sel=document.getElementById('fCategory'); const box=document.getElementById('fCategoryCustom');
   if(box){
