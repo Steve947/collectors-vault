@@ -4120,12 +4120,23 @@ function _pushLayer(key, closeFn, lock){
 
 // Returns false if the layer wasn't registered, so callers can fall back to
 // closing it directly.
+//
+// IMPORTANT: this closes SYNCHRONOUSLY and rewrites the current history entry.
+// It deliberately does NOT call history.go(), because that is asynchronous:
+// the ＋ menu buttons do `closeAddMenu(); openAddItem()` in one click, and the
+// delayed popstate from a go() would arrive *after* the panel had opened and
+// close it again — the menu appeared to do nothing at all.
 function _dropLayer(key){
   const i = _layers.map(l => l.key).lastIndexOf(key);
   if (i === -1) return false;
-  const steps = _layers.length - i;
-  try { history.go(-steps); }
-  catch(e){ _reconcileLayers(i); }
+  // Remove ONLY this layer, never the ones above it. The "..." menu buttons do
+  // `openGroupModal(); toggleMobileMenu()` — the modal ends up stacked on top of
+  // the menu, so tearing down everything above the menu would close the modal
+  // the user just asked for.
+  const layer = _layers.splice(i, 1)[0];
+  try { layer.close(); } catch(e){}
+  _syncScrollLock();
+  try { history.replaceState({ hoardrDepth: _layers.length }, ''); } catch(e){}
   return true;
 }
 
