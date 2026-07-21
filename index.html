@@ -272,7 +272,10 @@ textarea{resize:vertical;min-height:75px}
 .tags-wrap{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .io-strip{display:flex;gap:14px;padding:11px 20px;border-top:1px solid var(--border);background:linear-gradient(180deg,var(--surface) 0%,#15120b 100%);align-items:center;justify-content:center;flex-wrap:wrap}
 .io-group{display:flex;gap:6px;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.03)}
-.icon-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:4px;margin-top:2px;max-height:128px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px}
+.icon-picker{margin-top:2px;max-height:190px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px}
+.icon-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:4px}
+.icon-cat{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin:9px 2px 4px;position:sticky;top:-6px;background:var(--surface2);padding:2px 0}
+.icon-cat:first-child{margin-top:0}
 .icon-pick{font-size:18px;line-height:1;background:none;border:1px solid transparent;border-radius:6px;cursor:pointer;padding:4px 0;transition:all .12s}
 .icon-pick:hover{background:var(--surface3);border-color:var(--gold)}
 .icon-pick.sel{border-color:var(--gold);background:rgba(201,168,76,.15)}
@@ -4043,7 +4046,31 @@ window.addEventListener('resize', applyMobileLayout);
 window.addEventListener('DOMContentLoaded', applyMobileLayout);
 
 // ── Icon picker for collections & groups ──
-const ICON_CHOICES = ['🪙','💰','💎','🏆','🥇','🎖️','🏅','👑','💍','⌚','⛏️','🚂','🚆','✈️','🚗','🏎️','🚜','🚢','⚓','🛞','📮','✉️','📯','🎫','📷','🎸','🎺','🎻','🥁','🎹','🗡️','⚔️','🛡️','🔫','🪖','🏺','⚱️','🖼️','🎨','🧸','🎲','♟️','🃏','🪆','🧩','🐚','🦴','🪨','🦋','🐉','🦕','⭐','🌟','🪐','🔮','🧿','📚','📖','🗿','🕰️','🍷','🪕','⚽','🏀','🎮','📀','💿','📦','📁','🗂️','🏷️'];
+// Grouped so the picker stays scannable — a flat grid of 200+ emoji is
+// unusable. Order runs most-likely-first for this app's audience.
+const ICON_GROUPS = [
+  {l:'Numbers',i:['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟','#️⃣','🔢','🅰️','🅱️']},
+  {l:'Diecast & vehicles',i:['🚗','🏎️','🚙','🚕','🛻','🚐','🚚','🚛','🚜','🚌','🚎','🚓','🚑','🚒','🏍️','🛵','🚲','🛞','⛽']},
+  {l:'Rail, air & sea',i:['🚂','🚆','🚄','🚊','🚞','🚋','🛤️','✈️','🛩️','🚁','🪂','🚀','🛸','🚢','⛵','🛥️','⚓','🪝']},
+  {l:'Stamps & postal',i:['📮','✉️','📬','📭','📪','📫','📯','🏤','🗳️']},
+  {l:'Cards & games',i:['🃏','🎴','🀄','♟️','🎲','🧩','🎯','🎮','🕹️','🎰']},
+  {l:'Stickers & badges',i:['🏷️','🔖','📛','🪪','🎗️','⭐','🌟','✨','💫','🔰']},
+  {l:'Ceramics & glass',i:['🏺','🫖','☕','🍵','🍺','🍻','🍷','🍾','🥃','🫙','⚱️','🕯️','🍶']},
+  {l:'Coins, notes, medals',i:['🪙','💰','💵','💴','💶','💷','🏦','🏆','🥇','🥈','🥉','🎖️','🏅','👑']},
+  {l:'Militaria',i:['🗡️','⚔️','🛡️','🔫','🪖','💣','🧨','🎖️']},
+  {l:'Jewellery & watches',i:['💎','💍','📿','⌚','🕰️','⏳','👒','👜']},
+  {l:'Books, comics, paper',i:['📚','📖','📕','📗','📘','📙','📜','📰','🗞️','🎫','🗺️','📇']},
+  {l:'Music & audio',i:['🎸','🎺','🎻','🥁','🎹','🎷','🪕','🪗','🎤','🎵','📀','💿','📼','📻']},
+  {l:'Toys & figures',i:['🧸','🪆','🎎','🤖','🦸','🪀','🥏','🎈','🪁']},
+  {l:'Art & decor',i:['🖼️','🎨','🗿','🪞','🏮','🧵','🪡','🖌️','✒️']},
+  {l:'Nature & fossils',i:['🐚','🦴','🪨','💎','🦋','🐉','🦕','🦖','🪵','🍄','🌿','🪶','🥚','🌾']},
+  {l:'Cameras & optics',i:['📷','📸','🎞️','🎥','📹','🔭','🔬','🔎','💡']},
+  {l:'Tools & industrial',i:['⛏️','🔧','🔨','⚙️','🧰','🪚','🪛','🔩','⚒️','🏗️']},
+  {l:'Sport & outdoors',i:['⚽','🏀','🏈','⚾','🎾','🏉','🏒','🏓','🥊','🎣','⛳','🏇','🎿','🏄']},
+  {l:'Space & curios',i:['🪐','🌙','☄️','🔮','🧿','🎃','💀','🗝️','🧭']},
+  {l:'General',i:['📦','📁','🗂️','🗃️','🧳','🎁','🏠','🔑','📌','✅']}
+];
+const ICON_CHOICES = ICON_GROUPS.reduce((a,g)=>a.concat(g.i),[]);
 function setIcon(id, emoji){
   const inp=document.getElementById(id); if(!inp) return;
   inp.value=emoji;
@@ -4051,7 +4078,11 @@ function setIcon(id, emoji){
   if(wrap){ wrap.querySelectorAll('.icon-pick').forEach(b=>b.classList.toggle('sel', b.dataset.e===emoji)); }
 }
 function buildIconPicker(targetId){
-  return ICON_CHOICES.map(e=>`<button type="button" class="icon-pick" data-e="${e}" onclick="setIcon('${targetId}','${e}')">${e}</button>`).join('');
+  return ICON_GROUPS.map(g =>
+    `<div class="icon-cat">${g.l}</div><div class="icon-row">` +
+    g.i.map(e=>`<button type="button" class="icon-pick" data-e="${e}" onclick="setIcon('${targetId}','${e}')" title="${e}">${e}</button>`).join('') +
+    `</div>`
+  ).join('');
 }
 function renderIconPickers(){
   const c=document.getElementById('cIconPicker'); if(c&&!c.dataset.built){ c.innerHTML=buildIconPicker('cIcon'); c.dataset.built='1'; }
