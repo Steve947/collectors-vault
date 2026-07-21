@@ -1140,6 +1140,54 @@ function photoPath(p){         // Storage object path — needed for deletes lat
 const PHOTO_FULL_PX = 1200, PHOTO_FULL_Q = 0.75;
 const PHOTO_THUMB_PX = 120,  PHOTO_THUMB_Q = 0.5;
 
+// Photos fetched this session, keyed by URL. Exports touch the same photo
+// more than once (PDF thumbnail + gallery, Excel, backup), and re-fetching
+// 750 images over the network each time is the difference between an export
+// that finishes and one that looks frozen.
+const _photoCache = new Map();
+
+function _fetchTimeout(url, ms){
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), ms);
+  return fetch(url, { mode: 'cors', signal: ctl.signal }).finally(() => clearTimeout(t));
+}
+
+// Warm the cache in PARALLEL before an export starts.
+// Exports previously awaited photoToDataUrl one photo at a time. That was free
+// when photos were inline base64, but after the Storage migration it became
+// ~750 sequential network round trips with no feedback — which reads as a hang.
+async function prefetchPhotos(photos, label){
+  const urls = [...new Set(
+    (photos || []).filter(p => p && typeof p === 'object' && p.url).map(p => p.url)
+  )].filter(u => !_photoCache.has(u));
+  if (!urls.length) return;
+  const CONC = 8;
+  let done = 0;
+  const queue = urls.slice();
+  const worker = async () => {
+    while (queue.length) {
+      const u = queue.shift();
+      if (!u) return;
+      try {
+        const res = await _fetchTimeout(u, 20000);
+        if (res.ok) {
+          const blob = await res.blob();
+          const d = await new Promise(r => {
+            const fr = new FileReader();
+            fr.onload = () => r(fr.result); fr.onerror = () => r('');
+            fr.readAsDataURL(blob);
+          });
+          if (d) _photoCache.set(u, d);
+        }
+      } catch (e) { /* leave uncached — photoToDataUrl falls back per photo */ }
+      done++;
+      if (done % 25 === 0 || done === urls.length)
+        showToast(`${label} — preparing photos ${done}/${urls.length}`, '\u23f3');
+    }
+  };
+  await Promise.all(Array.from({ length: CONC }, worker));
+}
+
 // Resolve any photo to a data: URL. Tries a plain fetch first because that
 // preserves the original bytes and never touches a canvas (so it cannot be
 // tainted). Falls back to a canvas draw, then to the stored thumbnail, so an
@@ -1148,11 +1196,14 @@ async function photoToDataUrl(p){
   const src = photoFull(p);
   if(!src) return '';
   if(src.indexOf('data:')===0) return src;              // already inline
+  if(_photoCache.has(src)) return _photoCache.get(src);  // warmed by prefetchPhotos
   try{
-    const res = await fetch(src, {mode:'cors'});
+    const res = await _fetchTimeout(src, 20000);
     if(res.ok){
       const blob = await res.blob();
-      return await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.onerror=()=>r(''); fr.readAsDataURL(blob); });
+      const d = await new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(fr.result); fr.onerror=()=>r(''); fr.readAsDataURL(blob); });
+      if(d) _photoCache.set(src, d);
+      return d;
     }
   }catch(e){ /* CORS or offline — try the canvas route */ }
   const viaCanvas = await new Promise(resolve=>{
@@ -2619,6 +2670,8 @@ async function exportExcel(){
   if(!db.items.length && !db.collections.length){showToast('Nothing to export','⚠️');return;}
   showToast('Building Excel — please wait…','⏳');
   await new Promise(r=>setTimeout(r,60));
+  await prefetchPhotos(db.items.flatMap(i=>(i.photos||[]).filter(Boolean)), 'Excel');
+
   try{
   const wb=XLSX.utils.book_new();
 
@@ -3005,6 +3058,8 @@ async function exportInsuranceReport(){
   if(!db.items.length){ showToast('No items to report','⚠️'); return; }
   showToast('Building insurance schedule… please wait','⏳');
   await new Promise(r=>setTimeout(r,60));
+  await prefetchPhotos(db.items.flatMap(i=>(i.photos||[]).filter(Boolean)), 'Insurance report');
+
   try{
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -3329,6 +3384,8 @@ async function exportPDF(){
   const inclPhotos = isPro();
   showToast(inclPhotos?'Building PDF with photos… please wait':'Building PDF…','⏳');
   await new Promise(r=>setTimeout(r,60));
+  if(inclPhotos) await prefetchPhotos(db.items.flatMap(i=>(i.photos||[]).filter(Boolean)), 'Catalogue PDF');
+
 
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
@@ -3701,6 +3758,7 @@ async function saveLocally() {
   // original format, restorable entirely on its own.
   const needsFetch = db.items.some(i=>(i.photos||[]).some(p=>p&&typeof p!=='string'));
   if (needsFetch) showToast('Fetching photos for a self-contained backup\u2026','\u23f3');
+  await prefetchPhotos(db.items.flatMap(i=>(i.photos||[]).filter(Boolean)), 'Backup');
   const backupItems = [];
   for (const it of db.items) {
     const ph = (it.photos||[]).filter(p=>p);
