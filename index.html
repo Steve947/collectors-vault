@@ -158,7 +158,8 @@ label.btn.btn-sm{font-size:12px}
 .item-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;transition:all .2s ease;position:relative}
 .item-card:hover{border-color:var(--gold);transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.5),0 0 0 1px rgba(201,168,76,.2)}
 .card-photo{width:100%;height:140px;object-fit:cover;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:44px;border-bottom:1px solid var(--border)}
-.card-photo img{width:100%;height:100%;object-fit:cover}
+.card-photo img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .22s ease}
+.card-photo img.ph-on{opacity:1}
 .card-body{padding:10px}
 .card-cat{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:3px}
 .card-name{font-weight:600;font-size:13px;color:var(--text);margin-bottom:5px;line-height:1.3}
@@ -189,7 +190,8 @@ label.btn.btn-sm{font-size:12px}
 .items-table tr:hover td{background:var(--surface2);cursor:pointer}
 .td-name{color:var(--text)!important;font-weight:500}
 .td-thumb{width:34px;height:34px;border-radius:4px;object-fit:cover;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden}
-.td-thumb img{width:100%;height:100%;object-fit:cover}
+.td-thumb img{width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .22s ease}
+.td-thumb img.ph-on{opacity:1}
 
 /* ── PANELS ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;align-items:flex-start;justify-content:flex-end;opacity:0;pointer-events:none;transition:opacity .2s}
@@ -1221,6 +1223,27 @@ async function uploadPhoto(file, itemId){
   }
 }
 
+// ── Sharp-first image rendering ──────────────────────────────────────
+// Grids and lists render the FULL Storage image, never the thumbnail: a
+// 120px thumb stretched across a ~215px card (double that on a HiDPI
+// screen) looks soft, and this app is meant to look expensive.
+// The image fades in over the card background, so you get "nothing, then
+// sharp" rather than "blurry, then sharp".
+// The inline thumbnail is kept purely as an OFFLINE FALLBACK — used only
+// when the Storage image cannot be fetched at all.
+function photoFallback(img){
+  img.onerror = null;                       // never loop
+  const it = db.items.find(x => x.id === img.getAttribute('data-item'));
+  const p  = it && (it.photos || []).filter(Boolean)[0];
+  const t  = p ? photoSrc(p) : '';
+  if (t && t !== img.getAttribute('src')) img.src = t;
+  img.classList.add('ph-on');
+}
+function photoImgTag(item, p){
+  return `<img src="${photoFull(p)}" alt="${escH(item.name)}" loading="lazy" decoding="async"`
+       + ` data-item="${item.id}" onload="this.classList.add('ph-on')" onerror="photoFallback(this)">`;
+}
+
 // Recursively empty a Storage folder. Used on account deletion — without this
 // a deleted user's photos would survive in the bucket.
 async function deleteStorageFolder(path){
@@ -2079,7 +2102,7 @@ function renderContent() {
 
 function renderCard(item) {
   const photos=(item.photos||[]).filter(p=>p);
-  const thumbHtml=photos.length?`<div class="card-photo"><img src="${photoSrc(photos[0])}" alt="${escH(item.name)}" loading="lazy"></div>`:`<div class="card-photo">${catEmoji(item.category)}</div>`;
+  const thumbHtml=photos.length?`<div class="card-photo">${photoImgTag(item,photos[0])}</div>`:`<div class="card-photo">${catEmoji(item.category)}</div>`;
   const grp=item.groupId?db.groups.find(g=>g.id===item.groupId):null;
   const groupName=grp?grp.name:'';
   const collectionName=grp&&grp.collectionId?(db.collections.find(c=>c.id===grp.collectionId)||{}).name||'':'';
@@ -2108,7 +2131,7 @@ function renderCard(item) {
 
 function renderTableRow(item) {
   const photos=(item.photos||[]).filter(p=>p);
-  const thumbHtml=photos.length?`<div class="td-thumb"><img src="${photoSrc(photos[0])}" loading="lazy"></div>`:`<div class="td-thumb">${catEmoji(item.category)}</div>`;
+  const thumbHtml=photos.length?`<div class="td-thumb">${photoImgTag(item,photos[0])}</div>`:`<div class="td-thumb">${catEmoji(item.category)}</div>`;
   const grpR=item.groupId?db.groups.find(g=>g.id===item.groupId):null;
   const groupName=grpR?grpR.name:'—';
   const collNameR=grpR&&grpR.collectionId?(db.collections.find(c=>c.id===grpR.collectionId)||{}).name||'':'';
@@ -2144,7 +2167,7 @@ function viewItem(id) {
   const groupName=item.groupId?(db.groups.find(g=>g.id===item.groupId)||{}).name||'':'';
   let heroHtml = photos.length
     ? `<div class="detail-photo-hero" id="heroPhoto"><img src="${photoFull(photos[0])}" id="heroImg" alt="${escH(item.name)}"></div>
-       ${photos.length>1?`<div class="detail-photo-strip">${photos.map((p,i)=>`<div class="strip-thumb${i===0?' active':''}" onclick="setHero('${photoFull(p)}',this)"><img src="${photoSrc(p)}" loading="lazy"></div>`).join('')}</div>`:''}`
+       ${photos.length>1?`<div class="detail-photo-strip">${photos.map((p,i)=>`<div class="strip-thumb${i===0?' active':''}" onclick="setHero('${photoFull(p)}',this)"><img src="${photoFull(p)}" loading="lazy" decoding="async"></div>`).join('')}</div>`:''}`
     : `<div class="detail-photo-hero">${catEmoji(item.category)}</div>`;
   const stars='★'.repeat(item.rating||0)+'☆'.repeat(5-(item.rating||0));
   const catSpecHtml=item.catFieldVals?Object.entries(item.catFieldVals).filter(([k,v])=>v).map(([k,v])=>`<div class="detail-field"><div class="detail-field-label">${escH(k.replace(/_/g,' '))}</div><div class="detail-field-value">${escH(v)}</div></div>`).join(''):'';
