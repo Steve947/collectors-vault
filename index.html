@@ -1023,30 +1023,10 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">📦</span> &nbsp;<b style="color:var(--gold2)">Items</b> <span style="color:var(--text3);font-size:12px">— each individual piece, with its photos, value, condition & notes.</span></div>
     </div>
     <div style="margin:16px 0 6px;border-top:1px solid var(--border);padding-top:14px">
-      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);text-align:center;margin-bottom:10px">Free &amp; Pro</div>
-      <div style="display:flex;gap:8px">
-        <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 11px">
-          <div style="color:var(--gold2);font-weight:700;font-size:13px;margin-bottom:6px">Free — forever</div>
-          <ul style="margin:0;padding-left:15px;color:var(--text3);font-size:11px;line-height:1.55">
-            <li>Up to 250 items</li>
-            <li>5 collections</li>
-            <li>3 photos per item</li>
-            <li>Search, sort &amp; bulk edit</li>
-            <li>Cloud sync &amp; backups</li>
-          </ul>
-        </div>
-        <div style="flex:1;background:var(--surface2);border:1px solid var(--gold-dim,#7a5a1e);border-radius:8px;padding:10px 11px">
-          <div style="color:var(--gold2);font-weight:700;font-size:13px;margin-bottom:6px">Pro <span style="color:var(--text3);font-weight:400;font-size:10px">· coming soon</span></div>
-          <ul style="margin:0;padding-left:15px;color:var(--text3);font-size:11px;line-height:1.55">
-            <li>Unlimited items &amp; collections</li>
-            <li>6 photos per item</li>
-            <li>Excel &amp; photo-catalogue PDF</li>
-            <li>Insurance schedule export</li>
-            <li>Duplicate items &amp; more</li>
-          </ul>
-        </div>
+      <div style="background:var(--surface2);border:1px solid var(--gold-dim,#7a5a1e);border-radius:8px;padding:12px 14px">
+        <div style="color:var(--gold2);font-weight:700;font-size:13px;margin-bottom:6px;text-align:center">Everything's included — free</div>
+        <p style="color:var(--text3);font-size:11.5px;line-height:1.6;margin:0;text-align:center">Unlimited items and collections, up to 6 photos each, Excel &amp; photo-catalogue PDF exports, insurance schedules, and cloud backup. No ads, no locked features, no catch.</p>
       </div>
-      <p style="color:var(--text3);font-size:10.5px;text-align:center;margin:9px 0 0">Pro features show a <b>“coming soon”</b> note for now — everything else is free to use today.</p>
     </div>
     <p style="color:var(--text3);font-size:12px;text-align:center;margin:14px 0 12px">Start by tapping <b>＋</b> and choosing <b>New Collection</b> — then add Groups, then Items. Reach this guide again from the <b>?</b> button up top.</p>
     <button class="btn btn-gold" style="width:100%;justify-content:center" onclick="closeOnboarding(true)">Get started →</button>
@@ -1093,10 +1073,29 @@ let sortKey = null, sortDir = 1;
 let selectMode = false; let selectedIds = new Set(); let renderLimit = 80; const RENDER_CHUNK = 80; let _lastSig = '';
 // ── Pro / entitlement (billing not live yet; manual grants via PRO_EMAILS, replaced by real billing later) ──
 let isProUser = false;
-const PRO_EMAILS = ['sginn2@gmail.com', 'dbginn@bigpond.com']; // manual Pro grants until billing is live
+// ── Manual Pro grants (until real billing is live) ──────────────────────
+// Steve + dad are permanent. TEST_PRO_EMAILS is for beta testers: paste their
+// EXACT sign-up email (lowercase), deploy, then have them sign in AFTER — the
+// flag is read once at sign-in, so anyone who logged in earlier must sign out
+// and back in. Comparison is case-insensitive. Clear this list before public launch.
+const OWNER_PRO_EMAILS = ['sginn2@gmail.com', 'dbginn@bigpond.com'];
+const TEST_PRO_EMAILS = [
+  // 'tester1@example.com',
+  // 'tester2@example.com',
+];
+const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCase());
 const APP_VERSION = '2026.07.20';   // shown in Profile; quote it in bug reports
 const FREE_MAX_ITEMS = 250, FREE_MAX_COLLECTIONS = 5, FREE_MAX_PHOTOS = 3, PRO_MAX_PHOTOS = 6;
-function isPro(){ return isProUser; }
+// Absolute per-account ceilings (cost protection, everyone — NOT a tier limit).
+const HARD_MAX_ITEMS = 5000, HARD_MAX_COLLECTIONS = 100;
+// ── Monetisation: currently FREE FOR EVERYONE ──────────────────────────
+// Decided 20 Jul 2026 to drop the paid tier. FREE_FOR_ALL unlocks every
+// Pro-gated feature at once (all gates call isPro()). The caps constants and
+// the per-feature gates are left in place but dormant, so a future paid tier
+// is a one-line change back to `return isProUser`. Optional support is via a
+// Ko-fi link, not an in-app paywall.
+const FREE_FOR_ALL = true;
+function isPro(){ return FREE_FOR_ALL || isProUser; }
 
 // ── Currency preference (stored per user in Firestore + mirrored to localStorage) ──
 const CURRENCIES=[
@@ -1692,6 +1691,9 @@ async function saveCollection() {
   const name = document.getElementById('cName').value.trim();
   if (!name) { showToast('Please enter a collection name','⚠️'); return; }
   const id = document.getElementById('editCollectionId').value;
+  if (!id && db.collections.length >= HARD_MAX_COLLECTIONS) {
+    showToast(`You've reached the ${HARD_MAX_COLLECTIONS}-collection limit. Contact support if you need more.`,'⚠️'); return;
+  }
   if (!id && !isPro() && db.collections.length >= FREE_MAX_COLLECTIONS) {
     showToast(`Free plan is limited to ${FREE_MAX_COLLECTIONS} collections — Pro (coming soon) unlocks unlimited`,'🔒'); return;
   }
@@ -1895,6 +1897,9 @@ function compressImage(file, maxWidth, quality) {
 async function saveItem() {
   const name = document.getElementById('fName').value.trim();
   if (!name) { showToast('Item name is required','⚠️'); return; }
+  if (!document.getElementById('editId').value && db.items.length >= HARD_MAX_ITEMS) {
+    showToast(`You've reached the ${HARD_MAX_ITEMS.toLocaleString()}-item limit. Contact support if you need more.`,'⚠️'); return;
+  }
   if (!document.getElementById('editId').value && !isPro() && db.items.length >= FREE_MAX_ITEMS) {
     showToast(`Free plan is limited to ${FREE_MAX_ITEMS} items — Pro (coming soon) unlocks unlimited`,'🔒'); return;
   }
