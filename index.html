@@ -782,10 +782,16 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
               <option value="Diecast">🚗 Diecast / Model Vehicle</option>
               <option value="Locomotive">🚂 Locomotive / Train</option>
               <option value="Stickers">🏷️ Stickers</option>
+              <option value="Toby Jug">🏺 Toby Jug</option>
               <option value="Other">📁 Other</option>
               <option value="__custom__">➕ Add custom…</option>
             </select>
             <input type="text" id="fCategoryCustom" placeholder="Name your category" style="display:none;margin-top:6px">
+            <div id="fCategoryIconWrap" style="display:none;margin-top:6px">
+              <label style="font-size:11px;color:var(--text3)">Category icon (pick an emoji)</label>
+              <input type="text" id="fCategoryEmoji" placeholder="🏷️" style="text-align:center;font-size:18px;margin-top:4px">
+              <div class="icon-picker" id="fCategoryEmojiPicker" style="max-height:150px;overflow:auto"></div>
+            </div>
           </div>
           <div><label>Group / Collection</label>
             <select id="fGroup"><option value="">— None —</option></select>
@@ -966,6 +972,8 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
           <option value="Stamp">📮 Stamp</option>
           <option value="Diecast">🚗 Diecast / Model Vehicle</option>
           <option value="Locomotive">🚂 Locomotive / Train</option>
+          <option value="Stickers">🏷️ Stickers</option>
+          <option value="Toby Jug">🏺 Toby Jug</option>
           <option value="Other">📁 Other</option>
         </select>
       </div>
@@ -976,6 +984,49 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <div class="modal-actions">
       <button class="btn btn-outline" onclick="closeModal('collectionModal')">Cancel</button>
       <button class="btn btn-gold" onclick="saveCollection()">Save Collection</button>
+    </div>
+  </div>
+</div>
+
+<!-- WHAT'S NEW MODAL -->
+<div class="modal-overlay" id="whatsNewModal" onclick="closeIfBg(event,'whatsNewModal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">✨ What&rsquo;s New</div>
+    <div id="whatsNewBody" style="max-height:60vh;overflow:auto"></div>
+    <div class="modal-actions">
+      <button class="btn btn-gold" onclick="closeModal('whatsNewModal')">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- CATEGORY MODAL -->
+<div class="modal-overlay" id="categoryModal" onclick="closeIfBg(event,'categoryModal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title" id="categoryModalTitle">Edit Category</div>
+    <input type="hidden" id="editCategoryOrig">
+    <input type="hidden" id="editCategoryBuiltin">
+    <div class="field-row"><label>Category Name *</label><input type="text" id="catName" placeholder="e.g. Toby Jugs"></div>
+    <div class="field-row-2">
+      <div><label>Icon (emoji)</label><input type="text" id="catEmojiInput" placeholder="🏷️" style="text-align:center;font-size:18px"></div>
+      <div></div>
+    </div>
+    <div class="field-row"><label>Or pick an icon</label><div class="icon-picker" id="catEmojiInputPicker" style="max-height:170px;overflow:auto"></div></div>
+    <div id="catBuiltinNote" style="display:none;font-size:11px;color:var(--text3);margin-top:2px">Built-in category — you can change its icon; the name is fixed.</div>
+    <div id="catDeletePanel" style="display:none;margin-top:12px;padding:11px;border:1px solid var(--red2);border-radius:6px;background:rgba(138,48,48,.06)">
+      <div id="catDeleteMsg" style="font-size:12px;margin-bottom:7px"></div>
+      <div id="catReassignRow" style="display:none">
+        <label style="font-size:11px;color:var(--text3)">Move items to</label>
+        <select id="catReassign" style="width:100%;margin-top:4px"></select>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:9px;justify-content:flex-end">
+        <button class="btn btn-outline btn-sm" onclick="cancelDeleteCategory()">Cancel</button>
+        <button class="btn btn-sm" style="background:var(--red2);color:#fff;border:none" onclick="confirmDeleteCategory()">Delete category</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal('categoryModal')">Cancel</button>
+      <button class="btn btn-outline" id="catDeleteBtn" onclick="deleteCategory()" style="color:var(--red2)">Delete</button>
+      <button class="btn btn-gold" onclick="saveCategory()">Save</button>
     </div>
   </div>
 </div>
@@ -995,6 +1046,8 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
           <option value="Stamp">📮 Stamp</option>
           <option value="Diecast">🚗 Diecast / Model Vehicle</option>
           <option value="Locomotive">🚂 Locomotive / Train</option>
+          <option value="Stickers">🏷️ Stickers</option>
+          <option value="Toby Jug">🏺 Toby Jug</option>
           <option value="Other">📁 Other</option>
         </select>
       </div>
@@ -1092,7 +1145,18 @@ const TEST_PRO_EMAILS = [
   // 'tester2@example.com',
 ];
 const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCase());
-const APP_VERSION = '2026.07.20';   // shown in Profile; quote it in bug reports
+const APP_VERSION = '1.1.0';             // semantic version — quote in bug reports
+const APP_VERSION_DATE = '2026-09-01';   // release date of this build
+// Newest first. Each: {v, date, changes:[...]}. Drives the What's New modal.
+const CHANGELOG = [
+  { v:'1.1.0', date:'1 Sep 2026', changes:[
+    'New “Toby Jug” category, with its own icon.',
+    'Create your own categories — they now stick and show up everywhere, so there’s no need to retype them on each item.',
+    'Give any category its own emoji icon.',
+    'Edit categories directly: tap the ✏ next to a category to rename it, change its icon, or delete it.',
+    'Deleting a category now lets you choose which category its items move to.',
+  ]},
+];
 const FREE_MAX_ITEMS = 250, FREE_MAX_COLLECTIONS = 5, FREE_MAX_PHOTOS = 3, PRO_MAX_PHOTOS = 6;
 // Absolute per-account ceilings (cost protection, everyone — NOT a tier limit).
 const HARD_MAX_ITEMS = 5000, HARD_MAX_COLLECTIONS = 100;
@@ -1149,6 +1213,14 @@ async function loadCurrencyPref(){
     const d=await firestoreDb.doc(`${userPath()}/settings/prefs`).get();
     const c=d.exists?d.get('currency'):null;
     if(c){ userCurrency=c; try{ localStorage.setItem('hoardrCurrency',c); }catch(e){} }
+    const cc=d.exists?d.get('customCats'):null;
+    if(Array.isArray(cc)){
+      const byName={};
+      [...cc,...customCats].forEach(x=>{ const n=x&&(x.name||x); if(!n) return; const em=(x&&x.emoji)||''; if(!byName[n]||(!byName[n].emoji&&em)) byName[n]={name:n,emoji:em}; });
+      customCats=Object.values(byName); sortCustomCats();
+      try{ localStorage.setItem('hoardrCustomCats',JSON.stringify(customCats)); }catch(e){}
+      refreshCategoryOptions(); try{ render(); }catch(e){}
+    }
   }catch(e){ console.warn('Currency load failed:',e); }
   applyCurrencyLabels();
   try{ render(); }catch(e){}
@@ -1508,6 +1580,42 @@ window.addEventListener('appinstalled', () => {
   showToast('Hoardr installed successfully!','🎉');
 });
 
+// ── iOS install hint ──
+// iOS Safari never fires beforeinstallprompt, so the Android banner above never
+// shows there. Detect iOS Safari (only Safari can Add to Home Screen on iOS) and
+// show a manual instruction banner instead, reusing the same dismiss/session rules.
+function maybeShowIosInstallBanner() {
+  const ua = navigator.userAgent || '';
+  const isIos = /iphone|ipad|ipod/i.test(ua) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  if (!isIos) return;
+  // Chrome (CriOS), Firefox (FxiOS), Edge (EdgiOS), Opera (OPiOS) on iOS can't install — skip them
+  if (/crios|fxios|edgios|opios/i.test(ua)) return;
+  // Already installed / running as an installed PWA
+  if (window.navigator.standalone === true ||
+      window.matchMedia('(display-mode: standalone)').matches) return;
+  // Same rules as the Android banner: honour a prior dismiss, show at most once per session
+  try { if (localStorage.getItem('hoardr_install_dismissed')) return; } catch(e){}
+  try { if (sessionStorage.getItem('hoardr_install_shown')) return; sessionStorage.setItem('hoardr_install_shown','1'); } catch(e){}
+  if (document.getElementById('pwaInstallBanner')) return;
+  const banner = document.createElement('div');
+  banner.id = 'pwaInstallBanner';
+  banner.style.cssText = `position:fixed;bottom:72px;left:50%;transform:translateX(-50%);
+    background:var(--surface);border:1px solid var(--gold);border-radius:10px;
+    padding:12px 18px;display:flex;align-items:center;gap:12px;z-index:500;
+    box-shadow:0 4px 20px rgba(0,0,0,.6);max-width:360px;width:90vw`;
+  banner.innerHTML = `
+    <img src="icon-192.png" style="width:36px;height:36px;border-radius:8px" alt="">
+    <div style="flex:1">
+      <div style="font-weight:600;color:var(--gold2);font-size:13px">Install Hoardr</div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.5">Tap <svg width="11" height="13" viewBox="0 0 24 30" style="vertical-align:-2px" aria-hidden="true"><path d="M12 3 L12 19 M12 3 L7.5 7.5 M12 3 L16.5 7.5" fill="none" stroke="#4a9eff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 12 H4 V27 H20 V12 H17.5" fill="none" stroke="#4a9eff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg> then <b style="color:var(--text2)">Add to Home Screen</b></div>
+    </div>
+    <button aria-label="Dismiss" onclick="try{localStorage.setItem('hoardr_install_dismissed','1')}catch(e){};document.getElementById('pwaInstallBanner').remove()"
+      style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0 4px">✕</button>`;
+  document.body.appendChild(banner);
+}
+window.addEventListener('load', () => setTimeout(maybeShowIosInstallBanner, 3500));
+
 // ═══════════════════════════════════════════════════════════
 // AUTH
 // ═══════════════════════════════════════════════════════════
@@ -1618,6 +1726,8 @@ function userPath() { return `users/${currentUser.uid}`; }
 function startRealtimeSync() {
   setSyncStatus('syncing');
   loadCurrencyPref();
+  loadCustomCats();
+  setTimeout(maybeShowWhatsNew, 1800);
 
   unsubCollections = firestoreDb.collection(`${userPath()}/collections`)
     .orderBy('createdAt','asc')
@@ -1912,6 +2022,7 @@ async function saveItem() {
   if (!document.getElementById('editId').value && !isPro() && db.items.length >= FREE_MAX_ITEMS) {
     showToast(`Free plan is limited to ${FREE_MAX_ITEMS} items — Pro (coming soon) unlocks unlimited`,'🔒'); return;
   }
+  rememberCustomCat(getCategoryValue(), getCategoryEmoji());
   const btn = document.getElementById('saveItemBtn');
   btn.disabled = true; btn.innerHTML = '<span class="loading-spinner"></span> Saving…';
 
@@ -2115,8 +2226,14 @@ function updateStats() {
   document.getElementById('allCount').textContent=db.items.length;
 }
 function qtyOf(i){ const n=parseInt(i&&i.quantity,10); return (n&&n>0)?n:1; }
-function catEmoji(cat){return{'Belt Buckle':'🪙','Stamp':'📮','Diecast':'🚗','Locomotive':'🚂','Stickers':'🏷️','Other':'📁'}[cat]||'📦'}
-function catColor(cat){return{'Belt Buckle':'#c9a84c','Stamp':'#6aab7a','Diecast':'#5a8eb0','Locomotive':'#8b5e9a','Stickers':'#d08a3a','Other':'#c06090'}[cat]||'#7a6e58'}
+let customCats = [];  // [{name,emoji}] — persistent custom categories (see below)
+const BUILTIN_CATS = ['Belt Buckle','Stamp','Diecast','Locomotive','Stickers','Toby Jug','Other'];
+function catEmoji(cat){
+  const cc=Array.isArray(customCats)?customCats.find(x=>x&&(x.name||x)===cat):null;
+  if(cc&&cc.emoji) return cc.emoji;
+  return {'Belt Buckle':'🪙','Stamp':'📮','Diecast':'🚗','Locomotive':'🚂','Stickers':'🏷️','Toby Jug':'🏺','Other':'📁'}[cat]||'📦';
+}
+function catColor(cat){return{'Belt Buckle':'#c9a84c','Stamp':'#6aab7a','Diecast':'#5a8eb0','Locomotive':'#8b5e9a','Stickers':'#d08a3a','Toby Jug':'#b5794a','Other':'#c06090'}[cat]||'#7a6e58'}
 
 function alphaSort(arr, key='name') {
   return [...arr].sort((a,b)=>(a[key]||'').localeCompare(b[key]||'', undefined, {sensitivity:'base'}));
@@ -2491,15 +2608,23 @@ function filterByCat(cat){
 }
 function renderCatChips(){
   const box=document.getElementById('catChips'); if(!box) return;
-  const BUILTIN=['Belt Buckle','Stamp','Diecast','Locomotive','Other'];
-  const META={'Belt Buckle':'🪙 Buckles','Stamp':'📮 Stamps','Diecast':'🚗 Diecast','Locomotive':'🚂 Trains','Other':'📁 Other'};
+  const BUILTIN=['Belt Buckle','Stamp','Diecast','Locomotive','Stickers','Toby Jug','Other'];
+  const META={'Belt Buckle':'Buckles','Stamp':'Stamps','Diecast':'Diecast','Locomotive':'Trains','Stickers':'Stickers','Toby Jug':'Toby Jugs','Other':'Other'};
   const used=new Set(db.items.map(i=>i.category).filter(Boolean));
   const custom=[...used].filter(c=>!BUILTIN.includes(c)).sort();
+  // Absorb any custom category already in use into the persistent list so it
+  // shows in the add-item dropdown forever without retyping.
+  let _newCust=false;
+  custom.forEach(c=>{ if(!customCats.some(x=>(x&&(x.name||x))===c)){ customCats.push({name:c,emoji:''}); _newCust=true; } });
+  if(_newCust){ sortCustomCats(); persistCustomCats(); refreshCategoryOptions(); }
   const cats=BUILTIN.concat(custom);
   let html=`<button class="tag" data-cat="all" onclick="filterByCat(this.dataset.cat)">All</button>`;
   cats.forEach(c=>{
-    const label=META[c]||('🏷 '+c);
-    html+=`<button class="tag" data-cat="${escH(c)}" onclick="filterByCat(this.dataset.cat)">${escH(label)}</button>`;
+    const label=catEmoji(c)+' '+(META[c]||c);
+    html+=`<span class="tag-wrap" style="display:inline-flex;align-items:center">`
+      +`<button class="tag" data-cat="${escH(c)}" onclick="filterByCat(this.dataset.cat)">${escH(label)}</button>`
+      +`<button class="cat-edit" data-cat="${escH(c)}" title="Edit category" onclick="event.stopPropagation();openCategoryModal(this.dataset.cat)" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:10px;padding:0 4px;margin-left:-2px">✏</button>`
+      +`</span>`;
   });
   box.innerHTML=html;
   highlightCatChip();
@@ -2607,7 +2732,8 @@ function openProfile(){
   if(currentUser.emailVerified){ vr.innerHTML='<span style="color:var(--green2)">✓ Email verified</span>'; }
   else { vr.innerHTML='<span style="color:var(--text3)">Email not verified — </span><a href="#" onclick="resendVerification();return false" style="color:var(--gold2)">resend verification</a>'; }
   const _v = document.getElementById('pfVersion');
-  if (_v) _v.textContent = 'Hoardr ' + APP_VERSION;
+  if (_v) _v.innerHTML = 'Hoardr v' + APP_VERSION + ' · ' + APP_VERSION_DATE
+    + ' · <a href="#" onclick="closeModal(\'profileModal\');openWhatsNew();return false" style="color:var(--gold2)">What&rsquo;s new</a>';
   openModal('profileModal');
 }
 async function saveProfile(){
@@ -4145,6 +4271,8 @@ function buildIconPicker(targetId){
 function renderIconPickers(){
   const c=document.getElementById('cIconPicker'); if(c&&!c.dataset.built){ c.innerHTML=buildIconPicker('cIcon'); c.dataset.built='1'; }
   const g=document.getElementById('gIconPicker'); if(g&&!g.dataset.built){ g.innerHTML=buildIconPicker('gIcon'); g.dataset.built='1'; }
+  const fc=document.getElementById('fCategoryEmojiPicker'); if(fc&&!fc.dataset.built){ fc.innerHTML=buildIconPicker('fCategoryEmoji'); fc.dataset.built='1'; }
+  const ce=document.getElementById('catEmojiInputPicker'); if(ce&&!ce.dataset.built){ ce.innerHTML=buildIconPicker('catEmojiInput'); ce.dataset.built='1'; }
 }
 window.addEventListener('DOMContentLoaded', renderIconPickers);
 
@@ -4304,6 +4432,8 @@ function clearItemForm(){
   const _du=document.getElementById('fDimUnit'); if(_du)_du.value='mm';
   document.getElementById('fCategory').value='';
   const _cc=document.getElementById('fCategoryCustom'); if(_cc){_cc.value='';_cc.style.display='none';}
+  const _ce=document.getElementById('fCategoryEmoji'); if(_ce)_ce.value='';
+  const _cw=document.getElementById('fCategoryIconWrap'); if(_cw)_cw.style.display='none';
   document.getElementById('fCondition').value='';
   document.getElementById('fGroup').value='';
   document.getElementById('fRating').value=0;
@@ -4359,9 +4489,10 @@ function openAddMenu(){
 function closeAddMenu(){ if(!_dropLayer('addMenu')) _closeAddMenuNow(); }
 function onCategoryChange(){
   const sel=document.getElementById('fCategory'); const box=document.getElementById('fCategoryCustom');
+  const wrap=document.getElementById('fCategoryIconWrap'); const em=document.getElementById('fCategoryEmoji');
   if(box){
-    if(sel.value==='__custom__'){ box.style.display='block'; box.focus(); }
-    else { box.style.display='none'; box.value=''; }
+    if(sel.value==='__custom__'){ box.style.display='block'; box.focus(); if(wrap) wrap.style.display='block'; }
+    else { box.style.display='none'; box.value=''; if(wrap) wrap.style.display='none'; if(em) em.value=''; }
   }
   updateCatFields();
 }
@@ -4370,12 +4501,170 @@ function getCategoryValue(){
   if(sel && sel.value==='__custom__'){ return (document.getElementById('fCategoryCustom').value||'').trim(); }
   return sel?sel.value:'';
 }
+function getCategoryEmoji(){
+  const sel=document.getElementById('fCategory');
+  if(sel && sel.value==='__custom__'){ const e=document.getElementById('fCategoryEmoji'); return e?(e.value||'').trim():''; }
+  return '';
+}
 function setCategoryField(val){
   const sel=document.getElementById('fCategory'); const box=document.getElementById('fCategoryCustom');
+  const wrap=document.getElementById('fCategoryIconWrap'); const em=document.getElementById('fCategoryEmoji');
   if(!sel) return;
   const known=[...sel.options].some(o=>o.value===val && o.value!=='__custom__');
-  if(val && !known){ sel.value='__custom__'; if(box){box.style.display='block';box.value=val;} }
-  else { sel.value=val; if(box){box.style.display='none';box.value='';} }
+  if(val && !known){ sel.value='__custom__'; if(box){box.style.display='block';box.value=val;}
+    if(wrap) wrap.style.display='block';
+    if(em){ const cc=customCats.find(x=>(x&&(x.name||x))===val); em.value=cc&&cc.emoji?cc.emoji:''; } }
+  else { sel.value=val; if(box){box.style.display='none';box.value='';} if(wrap) wrap.style.display='none'; if(em) em.value=''; }
+}
+
+// ── Persistent custom categories ──
+// Saved to the user's prefs (users/{uid}/settings/prefs) + localStorage, then
+// injected into every category dropdown so a category invented once is reusable
+// forever with no retyping. (customCats is declared up near catEmoji.)
+function refreshCategoryOptions(){
+  ['fCategory','cCategory','gCategory'].forEach(id=>{
+    const sel=document.getElementById(id); if(!sel) return;
+    const keep=sel.value;
+    [...sel.querySelectorAll('option[data-custom="1"]')].forEach(o=>o.remove());
+    const anchor=sel.querySelector('option[value="__custom__"]');
+    customCats.forEach(c=>{
+      const nm=c&&c.name?c.name:c;
+      if(BUILTIN_CATS.includes(nm)) return; // builtin emoji override, not a picklist entry
+      const o=document.createElement('option');
+      o.value=nm; o.textContent=(c&&c.emoji?c.emoji:'🏷️')+' '+nm; o.setAttribute('data-custom','1');
+      if(anchor) sel.insertBefore(o,anchor); else sel.appendChild(o);
+    });
+    sel.value=keep;
+  });
+}
+function persistCustomCats(){
+  try{ localStorage.setItem('hoardrCustomCats',JSON.stringify(customCats)); }catch(e){}
+  if(firebaseMode && currentUser){
+    firestoreDb.doc(`${userPath()}/settings/prefs`).set({customCats},{merge:true})
+      .catch(e=>console.warn('customCats save failed:',e));
+  }
+}
+function sortCustomCats(){ customCats.sort((a,b)=>String(a&&a.name?a.name:a).localeCompare(String(b&&b.name?b.name:b))); }
+function normCustomCats(){
+  if(!Array.isArray(customCats)){ customCats=[]; return; }
+  customCats=customCats.map(x=> typeof x==='string' ? {name:x,emoji:''} : (x&&x.name?{name:x.name,emoji:x.emoji||''}:null)).filter(Boolean);
+}
+function rememberCustomCat(name,emoji){
+  name=(name||'').trim(); if(!name) return;
+  emoji=(emoji||'').trim();
+  if(BUILTIN_CATS.includes(name)) return;
+  const ex=customCats.find(x=>(x&&(x.name||x))===name);
+  if(ex){ if(emoji && ex.emoji!==emoji){ ex.emoji=emoji; persistCustomCats(); refreshCategoryOptions(); } return; }
+  customCats.push({name:name,emoji:emoji}); sortCustomCats();
+  persistCustomCats(); refreshCategoryOptions();
+}
+function loadCustomCats(){
+  try{ const raw=localStorage.getItem('hoardrCustomCats'); if(raw){ const a=JSON.parse(raw); if(Array.isArray(a)) customCats=a; } }catch(e){}
+  normCustomCats(); refreshCategoryOptions();
+}
+
+// ── What's New / changelog ──
+function openWhatsNew(){
+  try{ localStorage.setItem('hoardrSeenVersion',APP_VERSION); }catch(e){}
+  const box=document.getElementById('whatsNewBody');
+  if(box) box.innerHTML=CHANGELOG.map(e=>`<div style="margin-bottom:15px">`
+    +`<div style="font-weight:700;color:var(--gold2);font-size:13px">v${escH(e.v)} <span style="color:var(--text3);font-weight:400">· ${escH(e.date)}</span></div>`
+    +`<ul style="margin:6px 0 0;padding-left:18px;font-size:12.5px;color:var(--text2);line-height:1.5">${e.changes.map(c=>`<li style="margin:3px 0">${escH(c)}</li>`).join('')}</ul>`
+    +`</div>`).join('');
+  openModal('whatsNewModal');
+}
+function maybeShowWhatsNew(){
+  let seen=null; try{ seen=localStorage.getItem('hoardrSeenVersion'); }catch(e){}
+  if(seen===APP_VERSION) return;              // already caught up
+  if(!seen){ try{ localStorage.setItem('hoardrSeenVersion',APP_VERSION); }catch(e){} return; } // first run: no popup
+  showToast('What\u2019s new in v'+APP_VERSION, '✨', 'See', openWhatsNew);
+}
+
+// ── Edit a category (rename + emoji + delete) — parity with collections/groups ──
+function openCategoryModal(name){
+  name=(name||'').trim(); if(!name) return;
+  const isBuiltin=BUILTIN_CATS.includes(name);
+  document.getElementById('editCategoryOrig').value=name;
+  document.getElementById('editCategoryBuiltin').value=isBuiltin?'1':'';
+  const ni=document.getElementById('catName');
+  ni.value=name; ni.readOnly=isBuiltin; ni.style.opacity=isBuiltin?'.6':'';
+  document.getElementById('catBuiltinNote').style.display=isBuiltin?'block':'none';
+  document.getElementById('catDeleteBtn').style.display=isBuiltin?'none':'';
+  const dp=document.getElementById('catDeletePanel'); if(dp) dp.style.display='none';
+  setIcon('catEmojiInput', catEmoji(name)||'');
+  openModal('categoryModal');
+}
+async function saveCategory(){
+  const oldName=document.getElementById('editCategoryOrig').value;
+  const isBuiltin=document.getElementById('editCategoryBuiltin').value==='1';
+  const emoji=(document.getElementById('catEmojiInput').value||'').trim();
+  const newName=isBuiltin?oldName:(document.getElementById('catName').value||'').trim();
+  if(!newName){ showToast('Category name is required','⚠️'); return; }
+  const renamed = !isBuiltin && newName!==oldName;
+  if(renamed && (BUILTIN_CATS.includes(newName) || customCats.some(x=>(x&&(x.name||x))===newName))){
+    showToast('A category with that name already exists','⚠️'); return;
+  }
+  if(renamed){
+    const its=db.items.filter(i=>i.category===oldName), grs=db.groups.filter(g=>g.category===oldName), cos=db.collections.filter(c=>c.category===oldName);
+    if(firebaseMode){
+      setSyncStatus('syncing');
+      const batch=firestoreDb.batch();
+      its.forEach(i=>batch.update(firestoreDb.doc(`${userPath()}/items/${i.id}`),{category:newName}));
+      grs.forEach(g=>batch.update(firestoreDb.doc(`${userPath()}/groups/${g.id}`),{category:newName}));
+      cos.forEach(c=>batch.update(firestoreDb.doc(`${userPath()}/collections/${c.id}`),{category:newName}));
+      await batch.commit(); setSyncStatus('synced');
+    } else { its.forEach(i=>i.category=newName); grs.forEach(g=>g.category=newName); cos.forEach(c=>c.category=newName); saveLocal(); }
+  }
+  const ex=customCats.find(x=>(x&&(x.name||x))===oldName);
+  if(isBuiltin){
+    if(emoji){ if(ex) ex.emoji=emoji; else customCats.push({name:oldName,emoji:emoji}); }
+    else if(ex){ customCats=customCats.filter(x=>x!==ex); }
+  } else {
+    if(ex){ ex.name=newName; ex.emoji=emoji; } else { customCats.push({name:newName,emoji:emoji}); }
+    sortCustomCats();
+  }
+  persistCustomCats(); refreshCategoryOptions();
+  if(filterCat===oldName) filterCat=renamed?newName:oldName;
+  render(); closeModal('categoryModal'); showToast('Category saved','✓');
+}
+function deleteCategory(){
+  const name=document.getElementById('editCategoryOrig').value;
+  if(BUILTIN_CATS.includes(name)) return;
+  const n=db.items.filter(i=>i.category===name).length
+        +db.groups.filter(g=>g.category===name).length
+        +db.collections.filter(c=>c.category===name).length;
+  const nItems=db.items.filter(i=>i.category===name).length;
+  const sel=document.getElementById('catReassign');
+  const targets=BUILTIN_CATS.concat(customCats.map(x=>x&&x.name?x.name:x)).filter((v,i,a)=>v&&v!==name&&a.indexOf(v)===i);
+  sel.innerHTML=targets.map(t=>`<option value="${escH(t)}"${t==='Other'?' selected':''}>${escH(catEmoji(t)+' '+t)}</option>`).join('');
+  document.getElementById('catReassignRow').style.display=n?'block':'none';
+  document.getElementById('catDeleteMsg').textContent = n
+    ? `“${name}” is used by ${nItems} item(s). Choose where to move everything, then delete:`
+    : `Delete category “${name}”? Nothing is using it.`;
+  document.getElementById('catDeletePanel').style.display='block';
+}
+function cancelDeleteCategory(){ const p=document.getElementById('catDeletePanel'); if(p) p.style.display='none'; }
+async function confirmDeleteCategory(){
+  const name=document.getElementById('editCategoryOrig').value;
+  if(BUILTIN_CATS.includes(name)) return;
+  const its=db.items.filter(i=>i.category===name), grs=db.groups.filter(g=>g.category===name), cos=db.collections.filter(c=>c.category===name);
+  const used=its.length||grs.length||cos.length;
+  const target=used?((document.getElementById('catReassign').value)||'Other'):'';
+  if(firebaseMode){
+    setSyncStatus('syncing');
+    const batch=firestoreDb.batch();
+    if(target){
+      its.forEach(i=>batch.update(firestoreDb.doc(`${userPath()}/items/${i.id}`),{category:target}));
+      grs.forEach(g=>batch.update(firestoreDb.doc(`${userPath()}/groups/${g.id}`),{category:target}));
+      cos.forEach(c=>batch.update(firestoreDb.doc(`${userPath()}/collections/${c.id}`),{category:target}));
+    }
+    await batch.commit(); setSyncStatus('synced');
+  } else if(target){ its.forEach(i=>i.category=target); grs.forEach(g=>g.category=target); cos.forEach(c=>c.category=target); saveLocal(); }
+  customCats=customCats.filter(x=>(x&&(x.name||x))!==name);
+  persistCustomCats(); refreshCategoryOptions();
+  if(filterCat===name) filterCat=target||'all';
+  cancelDeleteCategory();
+  render(); closeModal('categoryModal'); showToast(target?('Category deleted — items moved to '+target):'Category deleted','🗑');
 }
 
 // ═══════════════════════════════════════════════════════════
