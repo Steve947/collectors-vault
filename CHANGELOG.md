@@ -4,6 +4,16 @@ All notable changes to Hoardr are recorded here. Versioning is `MAJOR.MINOR.PATC
 with the release date; the same list drives the in-app **What's New** panel
 (Profile → "What's new"). Newest first.
 
+## [1.3.0] — 2026-09-01
+
+### Added
+- **Single- and multi-item sharing.** Besides whole collections, you can now share one item (🔗 Share in
+  the item view) or a hand-picked set (Select → pick items → 🔗 Share in the bulk toolbar). Builds a
+  `type:'items'` snapshot; `share.html` renders it as a flat gallery. Same whitelist sanitiser and
+  value/price toggles; `sourceItemIds` stored so the link's **Update** re-snapshots the current items.
+  Shares are keyed by `subjectKey` (`col:<id>` or `items:<sortedIds>`) so each subject lists its own links.
+  No security-rule change — item shares live in the same owner-scoped `shares/{id}` collection.
+
 ## [1.2.0] — 2026-09-01
 
 ### Added

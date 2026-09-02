@@ -96,15 +96,15 @@
 
   function render(s){
     LBP=[];
-    var groups=s.groups||[];
+    var groups = (s.type==='items' && s.items) ? [{name:'', icon:'', items:s.items}] : (s.groups||[]);
     var st=s.stats||{items:0,groups:0};
     var html='<div class="head"><div class="cicon">'+esc(s.icon||'🗂')+'</div>'
       +'<h1>'+esc(s.title||'Collection')+'</h1>'
       +(s.ownerName?'<div class="owner">by '+esc(s.ownerName)+'</div>':'')
-      +'<div class="stats">'+esc(st.items||0)+' items · '+esc(st.groups||0)+' groups</div>'
+      +'<div class="stats">'+esc(st.items||0)+' items'+(st.groups?(' · '+esc(st.groups)+' groups'):'')+'</div>'
       +(s.description?'<p class="desc">'+esc(s.description)+'</p>':'')+'</div>';
     groups.forEach(function(g){
-      html+='<section class="group"><h2>'+esc(g.icon||'')+' '+esc(g.name||'Items')+'</h2><div class="grid">';
+      html+='<section class="group">'+(g.name?('<h2>'+esc(g.icon||'')+' '+esc(g.name)+'</h2>'):'')+'<div class="grid">';
       (g.items||[]).forEach(function(it){
         var hasPh=!!(it.photos&&it.photos.length), lbi=-1;
         if(hasPh){ lbi=LBP.length; LBP.push(it.photos); }
