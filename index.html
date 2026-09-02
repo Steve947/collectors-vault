@@ -988,6 +988,26 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
   </div>
 </div>
 
+<!-- SHARE MODAL -->
+<div class="modal-overlay" id="shareModal" onclick="closeIfBg(event,'shareModal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title">🔗 Share <span id="shCollName"></span></div>
+    <input type="hidden" id="shCollId">
+    <p style="font-size:12px;color:var(--text3);margin:-4px 0 12px;line-height:1.5">Creates a public web page anyone with the link can view — a read-only gallery of this collection. Your private details (purchase source, seller, provenance, insurance, notes, certificate numbers) are <b>never</b> included.</p>
+    <div class="field-row" style="display:flex;align-items:center;gap:9px"><input type="checkbox" id="shShowValue" style="width:auto;margin:0"><label for="shShowValue" style="margin:0;font-weight:400">Show estimated values</label></div>
+    <div class="field-row" style="display:flex;align-items:center;gap:9px"><input type="checkbox" id="shShowPrice" style="width:auto;margin:0"><label for="shShowPrice" style="margin:0;font-weight:400">Show purchase prices</label></div>
+    <div class="field-row"><label>Link expiry</label>
+      <select id="shExpiry"><option value="never" selected>Never — revoke anytime</option><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option></select>
+    </div>
+    <button class="btn btn-gold" style="width:100%;justify-content:center" id="shCreateBtn" onclick="createShare()">Create share link</button>
+    <div id="shResult" style="display:none;margin-top:12px"></div>
+    <hr class="section-divider">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Existing links for this collection</div>
+    <div id="shList" style="font-size:12px;color:var(--text3)">—</div>
+    <div class="modal-actions"><button class="btn btn-outline" onclick="closeModal('shareModal')">Close</button></div>
+  </div>
+</div>
+
 <!-- WHAT'S NEW MODAL -->
 <div class="modal-overlay" id="whatsNewModal" onclick="closeIfBg(event,'whatsNewModal')">
   <div class="modal-box" onclick="event.stopPropagation()">
@@ -1865,6 +1885,133 @@ async function deleteCollection(id, e) {
   showToast('Collection deleted','🗑');
 }
 
+// ── Public share pages (sanitised collection snapshots) ──
+function shareUrl(id){ return location.origin.replace(/\/$/,'') + '/share.html?id=' + id; }
+function _collectionItems(collectionId){
+  const gids=new Set(db.groups.filter(g=>g.collectionId===collectionId).map(g=>g.id));
+  return db.items.filter(i=>gids.has(i.groupId));
+}
+// WHITELIST sanitiser — ONLY these fields ever reach a public page. Adding a new
+// private field to items can never leak here because nothing is copied unless listed.
+function _safeShareItem(it, showValue, showPrice){
+  const photos=(it.photos||[]).map(p=> (p&&typeof p==='object') ? (p.url||'') : (typeof p==='string' && /^https?:\/\//.test(p) ? p : '')).filter(Boolean);
+  const o={ name:it.name||'', category:it.category||'', catEmoji:catEmoji(it.category)||'',
+    shortDesc:it.shortDesc||'', condition:it.condition||'', material:it.material||'',
+    rating:parseInt(it.rating)||0, quantity:parseInt(it.quantity)||1,
+    height:it.height||'', width:it.width||'', dimUnit:it.dimUnit||'mm', photos };
+  if(showValue && it.value) o.value=String(it.value);
+  if(showPrice && it.purchasePrice) o.price=String(it.purchasePrice);
+  return o;
+}
+function buildCollectionSnapshot(collectionId, showValue, showPrice){
+  const col=db.collections.find(c=>c.id===collectionId); if(!col) return null;
+  const groups=db.groups.filter(g=>g.collectionId===collectionId);
+  const items=_collectionItems(collectionId);
+  return {
+    type:'collection', collectionId:collectionId,
+    title:col.name||'Collection', icon:col.icon||'', description:col.desc||'',
+    ownerUid:(typeof currentUser!=='undefined'&&currentUser&&currentUser.uid)||'',
+    ownerName:(typeof currentUser!=='undefined'&&currentUser&&(currentUser.displayName||((currentUser.email||'').split('@')[0])))||'A collector',
+    showValue:!!showValue, showPrice:!!showPrice,
+    stats:{ items:items.length, groups:groups.length },
+    groups: groups.map(g=>({ name:g.name||'', icon:g.icon||'', category:g.category||'',
+      items: items.filter(i=>i.groupId===g.id).map(i=>_safeShareItem(i,showValue,showPrice)) }))
+      .filter(g=>g.items.length)
+  };
+}
+function openShareModal(collectionId){
+  if(!(firebaseMode&&currentUser)){ showToast('Sign in to share your collection','⚠️'); return; }
+  const col=db.collections.find(c=>c.id===collectionId); if(!col) return;
+  document.getElementById('shCollId').value=collectionId;
+  document.getElementById('shCollName').textContent=col.name||'Collection';
+  document.getElementById('shShowValue').checked=false;
+  document.getElementById('shShowPrice').checked=false;
+  document.getElementById('shExpiry').value='never';
+  document.getElementById('shResult').style.display='none';
+  renderSharesList(collectionId);
+  openModal('shareModal');
+}
+async function createShare(){
+  const collectionId=document.getElementById('shCollId').value;
+  if(!(firebaseMode&&currentUser)){ showToast('Sign in to share','⚠️'); return; }
+  const showValue=document.getElementById('shShowValue').checked;
+  const showPrice=document.getElementById('shShowPrice').checked;
+  const exp=document.getElementById('shExpiry').value;
+  const snap=buildCollectionSnapshot(collectionId, showValue, showPrice);
+  if(!snap){ showToast('Collection not found','⚠️'); return; }
+  if(!snap.stats.items){ showToast('This collection has no items to share yet','⚠️'); return; }
+  if(new Blob([JSON.stringify(snap)]).size>950000){ showToast('This collection is too large to share as one page yet','⚠️'); return; }
+  snap.createdAt=firebase.firestore.FieldValue.serverTimestamp();
+  snap.updatedAt=firebase.firestore.FieldValue.serverTimestamp();
+  snap.expiresAt = exp==='never' ? null : firebase.firestore.Timestamp.fromMillis(Date.now()+parseInt(exp,10)*86400000);
+  const btn=document.getElementById('shCreateBtn'); const ot=btn.textContent; btn.disabled=true; btn.textContent='Creating…';
+  try{
+    setSyncStatus('syncing');
+    const ref=await firestoreDb.collection('shares').add(snap);
+    setSyncStatus('synced');
+    const url=shareUrl(ref.id);
+    const box=document.getElementById('shResult'); box.style.display='block';
+    box.innerHTML=`<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Your share link (tap Copy, then send it):</div>`
+      +`<div style="display:flex;gap:6px"><input type="text" readonly value="${escH(url)}" style="flex:1;font-size:12px" onclick="this.select()">`
+      +`<button class="btn btn-gold btn-sm" onclick="copyShareText('${escH(url)}')">Copy</button></div>`;
+    renderSharesList(collectionId);
+    showToast('Share link created','🔗');
+  }catch(e){ console.warn('createShare failed',e); setSyncStatus('synced'); showToast('Could not create link — '+((e&&e.code)||'error'),'⚠️'); }
+  finally{ btn.disabled=false; btn.textContent=ot; }
+}
+function copyShareText(t){ try{ navigator.clipboard.writeText(t); showToast('Link copied','✓'); }catch(e){ showToast('Select the link and copy it manually','⚠️'); } }
+async function renderSharesList(collectionId){
+  const box=document.getElementById('shList'); if(!box) return;
+  if(!(firebaseMode&&currentUser)){ box.textContent='—'; return; }
+  box.textContent='Loading…';
+  try{
+    const qs=await firestoreDb.collection('shares').where('ownerUid','==',currentUser.uid).get();
+    const rows=[]; qs.forEach(d=>{ const s=d.data(); if(s.collectionId===collectionId) rows.push({id:d.id,s:s}); });
+    if(!rows.length){ box.textContent='No active links for this collection yet.'; return; }
+    box.innerHTML=rows.map(r=>{
+      const url=shareUrl(r.id);
+      const exp=r.s.expiresAt ? ('expires '+(r.s.expiresAt.toDate?r.s.expiresAt.toDate().toLocaleDateString():'')) : 'never expires';
+      const flags=[r.s.showValue?'values shown':'', r.s.showPrice?'prices shown':''].filter(Boolean).join(', ')||'values hidden';
+      return `<div style="border:1px solid rgba(201,168,76,.15);border-radius:6px;padding:8px;margin-bottom:6px">
+        <div style="font-size:11px;color:var(--text2);word-break:break-all">${escH(url)}</div>
+        <div style="font-size:10.5px;color:var(--text3);margin:3px 0 6px">${escH(exp)} · ${escH(flags)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="copyShareText('${escH(url)}')">Copy</button>
+          <button class="btn btn-outline btn-sm" onclick="updateShare('${r.id}')">Update</button>
+          <button class="btn btn-outline btn-sm" style="color:var(--red2)" onclick="revokeShare('${r.id}','${collectionId}')">Revoke</button>
+        </div></div>`;
+    }).join('');
+  }catch(e){ console.warn('renderSharesList',e); box.textContent='Could not load links.'; }
+}
+async function updateShare(shareId){
+  const collectionId=document.getElementById('shCollId').value;
+  try{
+    const doc=await firestoreDb.collection('shares').doc(shareId).get();
+    if(!doc.exists){ showToast('Link no longer exists','⚠️'); return; }
+    const cur=doc.data();
+    const snap=buildCollectionSnapshot(cur.collectionId, cur.showValue, cur.showPrice);
+    if(!snap){ showToast('Collection not found','⚠️'); return; }
+    if(new Blob([JSON.stringify(snap)]).size>950000){ showToast('Collection too large to share as one page','⚠️'); return; }
+    snap.createdAt=cur.createdAt||firebase.firestore.FieldValue.serverTimestamp();
+    snap.updatedAt=firebase.firestore.FieldValue.serverTimestamp();
+    snap.expiresAt=cur.expiresAt||null;
+    setSyncStatus('syncing');
+    await firestoreDb.collection('shares').doc(shareId).set(snap);
+    setSyncStatus('synced');
+    showToast('Shared page updated to match your collection','✓');
+    renderSharesList(collectionId);
+  }catch(e){ console.warn('updateShare',e); showToast('Update failed','⚠️'); }
+}
+async function revokeShare(shareId, collectionId){
+  if(!confirm('Revoke this link? Anyone who has it will no longer be able to view the page.')) return;
+  try{
+    setSyncStatus('syncing');
+    await firestoreDb.collection('shares').doc(shareId).delete();
+    setSyncStatus('synced');
+    showToast('Link revoked','🗑');
+    renderSharesList(collectionId);
+  }catch(e){ console.warn('revokeShare',e); showToast('Revoke failed','⚠️'); }
+}
 function populateCollectionSelect() {
   const sel = document.getElementById('gCollection');
   if (!sel) return;
@@ -2258,6 +2405,7 @@ function renderSidebar() {
         <span class="group-name" style="font-weight:700;color:${colActive?'var(--gold2)':'var(--text)'}">${escH(col.name)}</span>
         <span class="group-count">${colItemCount}</span>
         <button onclick="openGroupModal(null,'${col.id}');event.stopPropagation()" style="background:rgba(74,124,89,.15);border:1px solid rgba(74,124,89,.3);cursor:pointer;color:var(--green2);font-size:10px;padding:2px 5px;border-radius:3px" title="Add group to collection">＋</button>
+        <button onclick="openShareModal('${col.id}');event.stopPropagation()" style="background:rgba(74,124,89,.14);border:1px solid rgba(74,124,89,.28);cursor:pointer;color:var(--green2);font-size:11px;padding:2px 5px;border-radius:3px" title="Share collection">🔗</button>
         <button onclick="openCollectionModal('${col.id}');event.stopPropagation()" style="background:rgba(201,168,76,.12);border:1px solid rgba(201,168,76,.2);cursor:pointer;color:var(--gold2);font-size:11px;padding:2px 5px;border-radius:3px" title="Edit collection">✏</button>
         <button onclick="deleteCollection('${col.id}',event)" style="background:rgba(138,48,48,.2);border:1px solid rgba(138,48,48,.3);cursor:pointer;color:var(--red2);font-size:11px;padding:2px 5px;border-radius:3px" title="Delete collection">🗑</button>
       </div>`;
