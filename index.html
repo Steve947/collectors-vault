@@ -32,6 +32,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
 
 <style>
 :root {
@@ -885,7 +886,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
 
       <div class="tab-content" id="tabDesc">
         <div class="field-row"><label>Short Description</label><input type="text" id="fShortDesc" placeholder="One-line summary"></div>
-        <div class="field-row"><label>Full Notes</label><textarea id="fNotes" style="min-height:120px" placeholder="Detailed notes…"></textarea></div>
+        <div class="field-row"><label style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:0"><span>Full Notes</span><button type="button" id="aiTidyBtn" class="btn btn-outline btn-sm" style="display:none" onclick="aiTidyNotes()">\u2728 Tidy up</button></label><textarea id="fNotes" style="min-height:120px" placeholder="Detailed notes…"></textarea></div>
         <div class="field-row"><label>Historical / Background</label><textarea id="fHistory" style="min-height:90px" placeholder="Historical context, era, manufacturer info…"></textarea></div>
         <div class="field-row"><label>Tags (comma-separated)</label><input type="text" id="fTags" placeholder="e.g. western, silver, 1950s, rare"></div>
       </div>
@@ -923,6 +924,24 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <button class="btn btn-outline btn-sm" onclick="closePanel('summaryOverlay')">✕</button>
     </div>
     <div class="panel-body" id="summaryPanelBody"></div>
+  </div>
+</div>
+
+<!-- AI TIDY PREVIEW -->
+<div class="overlay" id="aiTidyOverlay" onclick="closeIfBg(event,'aiTidyOverlay')">
+  <div class="panel" onclick="event.stopPropagation()">
+    <div class="panel-header">
+      <div class="panel-title">\u2728 Tidy up notes</div>
+      <button class="btn btn-outline btn-sm" onclick="closePanel('aiTidyOverlay')">\u2715</button>
+    </div>
+    <div class="panel-body">
+      <p style="font-size:12px;color:var(--text3);margin-bottom:10px">AI rewrite \u2014 review before using. It won\u2019t add facts that aren\u2019t already in your notes.</p>
+      <div class="field-row"><label>Suggested</label><textarea id="aiTidyResult" style="min-height:180px" readonly></textarea></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button class="btn btn-outline" onclick="closePanel('aiTidyOverlay')">Keep mine</button>
+        <button class="btn btn-gold" onclick="aiTidyAccept()">Use this</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1176,6 +1195,51 @@ const TEST_PRO_EMAILS = [
   // 'tester2@example.com',
 ];
 const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCase());
+
+// ── AI features (limited alpha): owners only, ignores FREE_FOR_ALL, until billing lands ──
+const AI_ALPHA_EMAILS = OWNER_PRO_EMAILS.map(e => e.toLowerCase());
+function isAiAlpha(){ return !!currentUser && AI_ALPHA_EMAILS.includes((currentUser.email||'').toLowerCase()); }
+function updateAiUi(){ const b=document.getElementById('aiTidyBtn'); if(b) b.style.display = isAiAlpha() ? '' : 'none'; }
+let _aiTidyPending = '';
+async function aiTidyNotes(){
+  if(!isAiAlpha()){ showToast('AI is in limited testing right now','\uD83D\uDD12'); return; }
+  const ta = document.getElementById('fNotes');
+  const text = (ta.value||'').trim();
+  if(!text){ showToast('Write some notes first, then tidy them','\u270D\uFE0F'); return; }
+  if(!fnSvc){ showToast('AI unavailable \u2014 reload and try again','\u26A0\uFE0F'); return; }
+  const btn = document.getElementById('aiTidyBtn'); const orig = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled=true; btn.innerHTML='\u2026 tidying'; }
+  try{
+    const context = {
+      name: (document.getElementById('fName')||{}).value || '',
+      category: (typeof getCategoryValue==='function') ? getCategoryValue() : '',
+      shortDesc: (document.getElementById('fShortDesc')||{}).value || '',
+      condition: (document.getElementById('fCondition')||{}).value || '',
+      material: (typeof getMaterialValue==='function') ? getMaterialValue() : ''
+    };
+    const call = fnSvc.httpsCallable('aiAssist');
+    const resp = await call({ mode:'tidy', text: text, context: context });
+    const data = resp && resp.data;
+    const suggestion = (data && data.result && typeof data.result.description==='string') ? data.result.description.trim() : '';
+    if(!suggestion){ showToast('No changes suggested','\u2713'); return; }
+    _aiTidyPending = suggestion;
+    document.getElementById('aiTidyResult').value = suggestion;
+    openModal('aiTidyOverlay');
+  }catch(e){
+    const code = (e && e.code) || '';
+    if(code.indexOf('permission-denied')>=0) showToast('AI is in limited testing right now','\uD83D\uDD12');
+    else if(code.indexOf('resource-exhausted')>=0) showToast(e.message || 'AI limit reached for now','\u23F3');
+    else if(code.indexOf('unauthenticated')>=0) showToast('Sign in to use AI features','\uD83D\uDD12');
+    else showToast('Tidy failed: '+((e&&e.message)||'please try again'),'\u26A0\uFE0F');
+  }finally{
+    if(btn){ btn.disabled=false; btn.innerHTML=orig; }
+  }
+}
+function aiTidyAccept(){
+  if(_aiTidyPending){ document.getElementById('fNotes').value = _aiTidyPending; showToast('Notes updated \u2014 save the item to keep','\u2728'); }
+  _aiTidyPending='';
+  closePanel('aiTidyOverlay');
+}
 const APP_VERSION = '1.3.1';             // semantic version — quote in bug reports
 const APP_VERSION_DATE = '2026-09-01';   // release date of this build
 // Newest first. Each: {v, date, changes:[...]}. Drives the What's New modal.
@@ -1477,7 +1541,7 @@ async function deleteStorageFolder(path){
 }
 let currentUser = null;
 let firebaseMode = false;
-let firestoreDb = null, auth = null, storage = null;
+let firestoreDb = null, auth = null, storage = null, fnSvc = null;
 let unsubCollections = null, unsubGroups = null, unsubItems = null;
 let _trainSeeded = false;
 
@@ -1498,6 +1562,7 @@ function initFirebase() {
     if (!firebase.apps.length) firebase.initializeApp(config);
     try { firebase.appCheck().activate('6LeYsCwtAAAAAKXamnx3oouUurG0I1AS_VzabMSL', true); } catch(e){ console.warn('App Check init failed (non-fatal):', e); }
     firestoreDb = firebase.firestore();
+    try { fnSvc = firebase.functions(); } catch(e){ console.warn('Functions init failed (non-fatal):', e); }
     // ── Offline persistence: cache all data on-device (IndexedDB) so repeat
     //    loads are near-instant and only CHANGED records sync from the server.
     //    Big speed-up on cold desktop loads with large photo-heavy collections. ──
@@ -1669,6 +1734,7 @@ function setupAuthListener() {
     if (user) {
       currentUser = user;
       isProUser = PRO_EMAILS.includes((user.email||'').toLowerCase());
+      updateAiUi();
       document.getElementById('userName').textContent = user.displayName || user.email.split('@')[0];
       document.title = 'Hoardr — My Collection';
       document.getElementById('authScreen').style.display = 'none';
