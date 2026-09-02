@@ -4,6 +4,23 @@ All notable changes to Hoardr are recorded here. Versioning is `MAJOR.MINOR.PATC
 with the release date; the same list drives the in-app **What's New** panel
 (Profile → "What's new"). Newest first.
 
+## [1.2.0] — 2026-09-01
+
+### Added
+- **Public collection share pages.** A 🔗 button on each collection publishes a sanitised,
+  read-only snapshot to `shares/{id}`, viewable by anyone with the link at `share.html?id=...`
+  — no login required. The page carries a "Start your own free collection" call-to-action (growth loop).
+- **Per-share privacy toggles.** Estimated value and purchase price are OFF by default, each
+  independently toggleable. Sensitive fields (seller, provenance, insurance, notes, history,
+  certificate numbers, purchase source) are never written to the public snapshot — the sanitiser
+  is a whitelist, so new item fields can't accidentally leak.
+- **Link control.** Links never expire by default (optional 7/30/90-day expiry); owner can
+  **Update** (re-snapshot) or **Revoke** (delete) any link anytime. Expiry + revoke enforced in
+  Firestore security rules, not just the UI.
+
+### Notes
+- Requires the Firestore rules to be deployed (`shares/{id}` public-read block) — deployed 1 Sep 2026.
+
 ## [1.1.0] — 2026-09-01
 
 ### Added

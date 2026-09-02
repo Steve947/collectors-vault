@@ -1165,10 +1165,15 @@ const TEST_PRO_EMAILS = [
   // 'tester2@example.com',
 ];
 const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCase());
-const APP_VERSION = '1.1.0';             // semantic version — quote in bug reports
+const APP_VERSION = '1.2.0';             // semantic version — quote in bug reports
 const APP_VERSION_DATE = '2026-09-01';   // release date of this build
 // Newest first. Each: {v, date, changes:[...]}. Drives the What's New modal.
 const CHANGELOG = [
+  { v:'1.2.0', date:'1 Sep 2026', changes:[
+    'Share a collection! Tap the 🔗 on any collection to create a public link — a clean, read-only gallery friends can view with no app and no login.',
+    'You control what shows: estimated values and purchase prices are hidden by default, each with its own per-link toggle. Private details (seller, provenance, insurance, notes, certificate numbers) are never shared.',
+    'Links don’t expire unless you choose an expiry, and you can update or revoke any link at any time.',
+  ]},
   { v:'1.1.0', date:'1 Sep 2026', changes:[
     'New “Toby Jug” category, with its own icon.',
     'Create your own categories — they now stick and show up everywhere, so there’s no need to retype them on each item.',
