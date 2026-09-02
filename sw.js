@@ -1,5 +1,5 @@
 // Hoardr Service Worker — v1.0
-const CACHE_NAME = 'hoardr-v2';
+const CACHE_NAME = 'hoardr-v3';
 // RELATIVE paths — the site is served from the root on hoardrapp.com but from
 // /collectors-vault/ on github.io. Absolute /collectors-vault/ paths 404 on the
 // custom domain, which makes cache.addAll() reject and the worker never install.
@@ -44,8 +44,11 @@ self.addEventListener('fetch', event => {
     return; // Let browser handle normally
   }
 
+  // App shell (page navigations) always hits the network fresh so new deploys
+  // appear on a normal reload; other assets keep the fast cache-then-network path.
+  const _fresh = (event.request.mode === 'navigate');
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, _fresh ? { cache: 'reload' } : undefined)
       .then(response => {
         // Cache a copy of successful responses for the app shell
         if (response && response.status === 200 && response.type === 'basic') {

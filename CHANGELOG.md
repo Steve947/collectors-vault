@@ -22,6 +22,11 @@ with the release date; the same list drives the in-app **What's New** panel
   **Update** (re-snapshot) or **Revoke** (delete) any link anytime. Expiry + revoke enforced in
   Firestore security rules, not just the UI.
 
+### Fixed
+- App updates now appear on a normal reload — the service worker revalidates the page against
+  the server instead of serving a stale cached copy (cache bumped to `hoardr-v3`). Previously a
+  hard-refresh was needed to see a new deploy.
+
 ### Notes
 - Requires the Firestore rules to be deployed (`shares/{id}` public-read block) — deployed 1 Sep 2026.
 
