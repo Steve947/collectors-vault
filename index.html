@@ -1176,10 +1176,13 @@ const TEST_PRO_EMAILS = [
   // 'tester2@example.com',
 ];
 const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCase());
-const APP_VERSION = '1.3.0';             // semantic version — quote in bug reports
+const APP_VERSION = '1.3.1';             // semantic version — quote in bug reports
 const APP_VERSION_DATE = '2026-09-01';   // release date of this build
 // Newest first. Each: {v, date, changes:[...]}. Drives the What's New modal.
 const CHANGELOG = [
+  { v:'1.3.1', date:'2 Sep 2026', changes:[
+    'The main “Share” button now creates a shareable public page of your whole collection — the same clean gallery as collection and item sharing, instead of a plain text summary.',
+  ]},
   { v:'1.3.0', date:'1 Sep 2026', changes:[
     'Share individual items, not just whole collections — open any item and tap 🔗 Share.',
     'Or tap Select, pick several items, and share them together on one page with 🔗 Share in the toolbar.',
@@ -1958,6 +1961,26 @@ function buildItemsSnapshot(itemIds, showValue, showPrice){
     items: items.map(i=>_safeShareItem(i,showValue,showPrice))
   };
 }
+function buildAllSnapshot(showValue, showPrice){
+  const inColl=new Set();
+  const groups=db.collections.map(col=>{
+    const items=_collectionItems(col.id);
+    items.forEach(i=>inColl.add(i.id));
+    return { name:col.name||'Collection', icon:col.icon||'', category:'', items:items.map(i=>_safeShareItem(i,showValue,showPrice)) };
+  }).filter(g=>g.items.length);
+  const orphans=db.items.filter(i=>!inColl.has(i.id));
+  if(orphans.length) groups.push({ name:'Other items', icon:'📦', category:'', items:orphans.map(i=>_safeShareItem(i,showValue,showPrice)) });
+  const total=groups.reduce((a,g)=>a+g.items.length,0);
+  if(!total) return null;
+  return {
+    type:'collection', subjectKey:'all', title:'Full collection', icon:'🗂', description:'',
+    ownerUid:(typeof currentUser!=='undefined'&&currentUser&&currentUser.uid)||'',
+    ownerName:(typeof currentUser!=='undefined'&&currentUser&&(currentUser.displayName||((currentUser.email||'').split('@')[0])))||'A collector',
+    showValue:!!showValue, showPrice:!!showPrice,
+    stats:{ items:total, groups:groups.length },
+    groups:groups
+  };
+}
 function openShareModal(collectionId){
   if(!(firebaseMode&&currentUser)){ showToast('Sign in to share','⚠️'); return; }
   const col=db.collections.find(c=>c.id===collectionId); if(!col) return;
@@ -1988,8 +2011,8 @@ async function createShare(){
   const showValue=document.getElementById('shShowValue').checked;
   const showPrice=document.getElementById('shShowPrice').checked;
   const exp=document.getElementById('shExpiry').value;
-  const snap = shareSubject.kind==='items'
-    ? buildItemsSnapshot(shareSubject.itemIds, showValue, showPrice)
+  const snap = shareSubject.kind==='items' ? buildItemsSnapshot(shareSubject.itemIds, showValue, showPrice)
+    : shareSubject.kind==='all' ? buildAllSnapshot(showValue, showPrice)
     : buildCollectionSnapshot(shareSubject.collectionId, showValue, showPrice);
   if(!snap || !snap.stats.items){ showToast('Nothing to share yet','⚠️'); return; }
   if(new Blob([JSON.stringify(snap)]).size>950000){ showToast('This is too large to share as one page yet','⚠️'); return; }
@@ -2040,8 +2063,8 @@ async function updateShare(shareId){
     const doc=await firestoreDb.collection('shares').doc(shareId).get();
     if(!doc.exists){ showToast('Link no longer exists','⚠️'); return; }
     const cur=doc.data();
-    const snap = cur.type==='items'
-      ? buildItemsSnapshot(cur.sourceItemIds||[], cur.showValue, cur.showPrice)
+    const snap = cur.subjectKey==='all' ? buildAllSnapshot(cur.showValue, cur.showPrice)
+      : cur.type==='items' ? buildItemsSnapshot(cur.sourceItemIds||[], cur.showValue, cur.showPrice)
       : buildCollectionSnapshot(cur.collectionId, cur.showValue, cur.showPrice);
     if(!snap){ showToast('The original items could not be found','⚠️'); return; }
     if(new Blob([JSON.stringify(snap)]).size>950000){ showToast('Too large to share as one page','⚠️'); return; }
@@ -4327,23 +4350,12 @@ async function loadFromBackup(e) {
   e.target.value = '';
 }
 
-async function shareCollection() {
-  const summary = getCollectionSummary();
-  const grandTotal = db.items.reduce((a,i)=>a+parseFloat(i.value||0),0);
-  const shareText = `My Hoardr collection\n${db.items.length} items across ${db.collections.length} collections\nEst. total value: ${fmtMoney(grandTotal)} ${curCode()}\n\nCollections:\n` +
-    db.collections.map(col => {
-      const s = summary[col.id];
-      return `• ${col.name}: ${s.itemCount} items (${fmtMoney(s.totalValue)})`;
-    }).join('\n');
-  
-  if (navigator.share) {
-    try {
-      await navigator.share({ title: 'My Hoardr collection', text: shareText });
-    } catch(e) { if(e.name !== 'AbortError') copyToClipboard(shareText); }
-  } else {
-    copyToClipboard(shareText);
-    showToast('Summary copied to clipboard — paste to share!','📤');
-  }
+function shareCollection() {
+  // Repointed (v1.3.1) at the public-page sharing engine — was a native text-summary share.
+  if(!(firebaseMode&&currentUser)){ showToast('Sign in to share','⚠️'); return; }
+  if(!db.items.length){ showToast('Nothing to share yet — add some items first','⚠️'); return; }
+  shareSubject={ kind:'all', key:'all', title:'Full collection' };
+  _openShareUI();
 }
 
 function copyToClipboard(text) {

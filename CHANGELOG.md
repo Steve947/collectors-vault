@@ -4,6 +4,14 @@ All notable changes to Hoardr are recorded here. Versioning is `MAJOR.MINOR.PATC
 with the release date; the same list drives the in-app **What's New** panel
 (Profile → "What's new"). Newest first.
 
+## [1.3.1] — 2026-09-02
+
+### Changed
+- The global **Share** button (`shareCollection()`, in the ⋯/More menu and header) now opens the public-page
+  share modal for the whole collection (`kind:'all'` → `buildAllSnapshot()`, grouped by collection + an
+  "Other items" section for ungrouped) instead of a native `navigator.share` text summary. Same whitelist
+  sanitiser, value/price toggles, and Update/Revoke as the rest of sharing.
+
 ## [1.3.0] — 2026-09-01
 
 ### Added
