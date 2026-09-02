@@ -1095,7 +1095,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
 <!-- TOAST -->
 <div class="toast" id="toast"><span id="toastIcon">✓</span><span id="toastMsg">Saved</span><button id="toastAction" onclick="toastActionClick()" style="display:none;background:var(--gold);color:#1a1200;border:none;border-radius:5px;padding:4px 11px;font-size:12px;font-weight:600;cursor:pointer;margin-left:8px">Undo</button></div>
 
-<div id="bulkBar" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:140;background:var(--surface2);border:1px solid var(--gold);border-radius:12px;padding:9px 14px;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(0,0,0,.6)">
+<div id="bulkBar" style="display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:140;background:var(--surface2);border:1px solid var(--gold);border-radius:12px;padding:9px 12px;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;max-width:calc(100vw - 16px);box-sizing:border-box;box-shadow:0 8px 30px rgba(0,0,0,.6)">
   <span id="bulkCount" style="font-size:13px;color:var(--text2);font-weight:600">0 selected</span>
   <button class="btn btn-gold btn-sm" onclick="bulkShare()">🔗 Share</button>
   <button class="btn btn-outline btn-sm" onclick="bulkMove()">Move to group</button>
