@@ -14,6 +14,10 @@ with the release date; the same list drives the in-app **What's New** panel
   independently toggleable. Sensitive fields (seller, provenance, insurance, notes, history,
   certificate numbers, purchase source) are never written to the public snapshot — the sanitiser
   is a whitelist, so new item fields can't accidentally leak.
+- **Full-image zoom.** Tap any photo — in the item detail view or on a public share page — to
+  open a full-screen viewer with smooth pinch / scroll-wheel zoom, drag-to-pan, double-tap to reset,
+  and swipe / arrow-key navigation between an item's photos. Shared one engine across `index.html`
+  and `share.html`.
 - **Link control.** Links never expire by default (optional 7/30/90-day expiry); owner can
   **Update** (re-snapshot) or **Revoke** (delete) any link anytime. Expiry + revoke enforced in
   Firestore security rules, not just the UI.
