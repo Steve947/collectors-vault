@@ -946,6 +946,27 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
   </div>
 </div>
 
+<!-- ADD ITEM CHOOSER -->
+<div class="overlay" id="addChooser" onclick="closeIfBg(event,'addChooser')">
+  <div class="panel" onclick="event.stopPropagation()">
+    <div class="panel-header">
+      <div class="panel-title">Add an item</div>
+      <button class="btn btn-outline btn-sm" onclick="closePanel('addChooser')">✕</button>
+    </div>
+    <div class="panel-body">
+      <p style="font-size:13px;color:var(--text3);margin-bottom:16px">Start with a photo and let AI catalogue it, or enter the details yourself.</p>
+      <button class="btn btn-gold" style="width:100%;justify-content:flex-start;gap:12px;padding:16px;margin-bottom:12px" onclick="addItemPhotoFirst()">
+        <span style="font-size:22px">📷</span>
+        <span style="text-align:left"><span style="display:block;font-weight:600;font-size:15px">Photo first</span><span style="display:block;font-size:12px;opacity:.85">Snap or choose a photo — AI fills what it can</span></span>
+      </button>
+      <button class="btn btn-outline" style="width:100%;justify-content:flex-start;gap:12px;padding:16px" onclick="addItemManual()">
+        <span style="font-size:22px">✍️</span>
+        <span style="text-align:left"><span style="display:block;font-weight:600;font-size:15px">Enter manually</span><span style="display:block;font-size:12px;opacity:.75">Fill in the details yourself</span></span>
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- AI FILL FROM PHOTO -->
 <div class="overlay" id="aiFillOverlay" onclick="closeIfBg(event,'aiFillOverlay')">
   <div class="panel" onclick="event.stopPropagation()">
@@ -1260,7 +1281,7 @@ function aiTidyAccept(){
 }
 
 // ── AI fill from photo (vision identify → review → apply; owner-only alpha) ──
-let _aiFill=null, _aiFillRows=[];
+let _aiFill=null, _aiFillRows=[], _pendingAiAfterPhoto=false;
 async function _firstPhotoBase64(){
   const ph=(editPhotoData||[]).find(x=>x&&x.url); if(!ph) return null;
   let v=ph.url; if(typeof v!=='string') v=photoFull(v);
@@ -1273,16 +1294,20 @@ async function _firstPhotoBase64(){
 async function aiFillFromPhoto(){
   if(!isAiAlpha()){ showToast('AI is in limited testing right now','🔒'); return; }
   if(!fnSvc){ showToast('AI unavailable — reload and try again','⚠️'); return; }
-  const cat=(typeof getCategoryValue==='function')?getCategoryValue():'';
-  const catFields=(CAT_FIELDS[cat]||[]);
+  const curCat=(typeof getCategoryValue==='function')?getCategoryValue():'';
+  const known=curCat && CAT_FIELDS[curCat];
   const btn=document.getElementById('aiFillBtn'); const orig=btn?btn.innerHTML:'';
   if(btn){btn.disabled=true; btn.innerHTML='… reading photo';}
   try{
     const img=await _firstPhotoBase64();
     if(!img){ showToast('Add a photo first, then AI can read it','📸'); return; }
-    const resp=await fnSvc.httpsCallable('aiAssist')({mode:'identify', imageBase64:img.b64, mimeType:img.mime, category:cat, fields:catFields.map(f=>f.label)});
+    const pay={mode:'identify', imageBase64:img.b64, mimeType:img.mime};
+    if(known){ pay.category=curCat; pay.fields=CAT_FIELDS[curCat].map(f=>f.label); }
+    else { pay.catalog={}; Object.keys(CAT_FIELDS).forEach(c=>{ pay.catalog[c]=CAT_FIELDS[c].map(f=>f.label); }); }
+    const resp=await fnSvc.httpsCallable('aiAssist')(pay);
     const r=(resp.data&&resp.data.result)||{};
-    _aiFill={cat, catFields, values:r.values||{}, basis:r.basis||{}, description:r.description||'', condition:r.condition_hint||''};
+    const eff=known?curCat:(r.category&&CAT_FIELDS[r.category]?r.category:'');
+    _aiFill={cat:eff, catFields:CAT_FIELDS[eff]||[], values:r.values||{}, basis:r.basis||{}, description:r.description||'', condition:r.condition_hint||'', guessedCat:known?'':eff};
     _renderAiFill(); openModal('aiFillOverlay');
   }catch(e){
     const c=(e&&e.code)||'';
@@ -1294,6 +1319,7 @@ async function aiFillFromPhoto(){
 }
 function _renderAiFill(){
   const f=_aiFill; const rows=[];
+  if(f.guessedCat) rows.push({key:'__CAT__', label:'Category', value:f.guessedCat, read:true});
   f.catFields.forEach(cf=>{ const val=f.values[cf.label]; if(!val||!String(val).trim())return;
     const b=f.basis[cf.label]||'inferred'; rows.push({key:'cf_'+cf.key, label:cf.label, value:String(val), read:b==='read'}); });
   if(f.description) rows.push({key:'fNotes', label:'Description (Full Notes)', value:f.description, read:true});
@@ -1307,8 +1333,10 @@ function _renderAiFill(){
      +'<span style="font-size:10px;padding:2px 6px;border-radius:4px;'+(r.read?'background:rgba(201,168,76,.2);color:var(--gold)':'background:var(--surface2);color:var(--text3)')+'">'+(r.read?'read':'guess')+'</span></label>').join('');
 }
 function aiFillApply(){
-  let n=0;
-  document.querySelectorAll('#aiFillBody [data-aifill]').forEach(cb=>{ if(!cb.checked)return; const r=_aiFillRows[+cb.dataset.aifill]; if(!r)return;
+  let n=0; const checks=Array.from(document.querySelectorAll('#aiFillBody [data-aifill]'));
+  checks.forEach(cb=>{ if(!cb.checked)return; const r=_aiFillRows[+cb.dataset.aifill]; if(!r||r.key!=='__CAT__')return;
+    const sel=document.getElementById('fCategory'); if(sel){ sel.value=r.value; if(typeof updateCatFields==='function') updateCatFields(); n++; } });
+  checks.forEach(cb=>{ if(!cb.checked)return; const r=_aiFillRows[+cb.dataset.aifill]; if(!r||r.key==='__CAT__')return;
     const el=document.getElementById(r.key); if(!el)return;
     if(r.key==='fNotes' && el.value.trim()){ el.value=el.value.trim()+'\n'+r.value; } else { el.value=r.value; } n++; });
   showToast(n?('Applied '+n+' field'+(n>1?'s':'')+' — review & save'):'Nothing selected','✨');
@@ -2319,6 +2347,11 @@ async function deleteGroup(id, e) {
 // ITEMS CRUD
 // ═══════════════════════════════════════════════════════════
 function openAddItem() {
+  if (isAiAlpha()) { openModal('addChooser'); return; }
+  _openAddItemForm();
+}
+function _openAddItemForm() {
+  _pendingAiAfterPhoto = false;
   clearItemForm();
   document.getElementById('panelTitle').textContent = 'Add Item';
   document.getElementById('editId').value = '';
@@ -2326,6 +2359,8 @@ function openAddItem() {
   if (selectedGroupId) document.getElementById('fGroup').value = selectedGroupId;
   openPanel('itemOverlay');
 }
+function addItemManual(){ closePanel('addChooser'); _openAddItemForm(); }
+function addItemPhotoFirst(){ closePanel('addChooser'); _openAddItemForm(); _pendingAiAfterPhoto = true; const inp=document.getElementById('photoUpload'); if(inp) inp.click(); }
 
 function openEditItem(id) {
   const item = db.items.find(i=>i.id===id);
@@ -2962,11 +2997,14 @@ function handlePhotoUpload(e){
   const room=MAX_PHOTOS-editPhotoData.length;
   if(room<=0){ showToast(isPro()?`Maximum ${MAX_PHOTOS} photos per item`:`Free plan allows ${MAX_PHOTOS} photos/item — Pro (coming soon) unlocks 6`,'🔒'); e.target.value=''; return; }
   if(files.length>room){ showToast(`Only ${room} more photo(s) allowed (max ${MAX_PHOTOS})`,'⚠️'); files=files.slice(0,room); }
+  const runAi=_pendingAiAfterPhoto; _pendingAiAfterPhoto=false; let _first=true;
   files.forEach(file=>{
     const reader=new FileReader();
+    const wasFirst=_first; _first=false;
     reader.onload=ev=>{
       editPhotoData.push({url:ev.target.result, isNew:true, file});
       renderPhotoGrid();
+      if(runAi && wasFirst){ aiFillFromPhoto(); }
     };
     reader.readAsDataURL(file);
   });
