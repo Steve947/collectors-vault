@@ -618,6 +618,10 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       📂 Import Excel
       <input type="file" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event);toggleMobileMenu()">
     </label>
+    <label id="smartImportLabelM" class="btn btn-outline" style="cursor:pointer;justify-content:center;display:none">
+      ✨ AI Smart Import
+      <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="smartImportPick(event);toggleMobileMenu()">
+    </label>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
     <button class="btn btn-green" style="justify-content:center" onclick="saveLocally();toggleMobileMenu()">💾 Save to Device</button>
@@ -748,6 +752,10 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
         <label class="btn btn-outline btn-sm" style="cursor:pointer">
           📂 Import Excel
           <input type="file" id="importExcel" accept=".xlsx,.xls" style="display:none" onchange="importExcel(event)">
+        </label>
+        <label id="smartImportLabelD" class="btn btn-outline btn-sm" style="cursor:pointer;display:none">
+          ✨ AI Smart Import
+          <input type="file" accept=".xlsx,.xls,.csv" style="display:none" onchange="smartImportPick(event)">
         </label>
       </div>
       <div class="io-group">
@@ -941,6 +949,23 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
         <button class="btn btn-outline" onclick="closePanel('aiTidyOverlay')">Keep mine</button>
         <button class="btn btn-gold" onclick="aiTidyAccept()">Use this</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SMART IMPORT -->
+<div class="overlay" id="smartImportOverlay" onclick="closeIfBg(event,'smartImportOverlay')">
+  <div class="panel" onclick="event.stopPropagation()">
+    <div class="panel-header">
+      <div class="panel-title">✨ AI Smart Import</div>
+      <button class="btn btn-outline btn-sm" onclick="closePanel('smartImportOverlay')">✕</button>
+    </div>
+    <div class="panel-body">
+      <div id="smartImportBody"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn btn-outline" onclick="closePanel('smartImportOverlay')">Cancel</button>
+        <button class="btn btn-gold" id="siImportBtn" onclick="smartImportApply()">Import items</button>
       </div>
     </div>
   </div>
@@ -1238,7 +1263,7 @@ const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCa
 // ── AI features (limited alpha): owners only, ignores FREE_FOR_ALL, until billing lands ──
 const AI_ALPHA_EMAILS = OWNER_PRO_EMAILS.map(e => e.toLowerCase());
 function isAiAlpha(){ return !!currentUser && AI_ALPHA_EMAILS.includes((currentUser.email||'').toLowerCase()); }
-function updateAiUi(){ const on=isAiAlpha(); ['aiTidyBtn','aiFillBtn'].forEach(id=>{const b=document.getElementById(id); if(b) b.style.display = on ? '' : 'none';}); }
+function updateAiUi(){ const on=isAiAlpha(); ['aiTidyBtn','aiFillBtn','smartImportLabelD','smartImportLabelM'].forEach(id=>{const b=document.getElementById(id); if(b) b.style.display = on ? '' : 'none';}); }
 let _aiTidyPending = '';
 async function aiTidyNotes(){
   if(!isAiAlpha()){ showToast('AI is in limited testing right now','\uD83D\uDD12'); return; }
@@ -1341,6 +1366,114 @@ function aiFillApply(){
     if(r.key==='fNotes' && el.value.trim()){ el.value=el.value.trim()+'\n'+r.value; } else { el.value=r.value; } n++; });
   showToast(n?('Applied '+n+' field'+(n>1?'s':'')+' — review & save'):'Nothing selected','✨');
   closePanel('aiFillOverlay');
+}
+
+// ── AI Smart Import (arbitrary spreadsheet → mapped items in a new collection; owner-only) ──
+let _smartImport=null;
+const _SI_CORE={'Item Name':'name','Condition':'condition','Material':'material','Estimated Value':'value','Quantity':'quantity','Short Description':'shortDesc','Full Notes':'notes'};
+function _siNum(v){ const n=parseFloat(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isNaN(n)?'':String(n); }
+async function smartImportPick(e){
+  if(!isAiAlpha()){ showToast('Smart Import is in limited testing','🔒'); e.target.value=''; return; }
+  if(!fnSvc){ showToast('AI unavailable — reload and try again','⚠️'); e.target.value=''; return; }
+  const file=e.target.files[0]; e.target.value=''; if(!file) return;
+  const fname=file.name.replace(/\.(xlsx|xls|csv)$/i,'');
+  showToast('Reading spreadsheet…','⏳');
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'binary'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''}).filter(r=>Object.values(r).some(v=>String(v).trim()));
+      if(!rows.length){ showToast('No rows found in that sheet','⚠️'); return; }
+      const headers=Object.keys(rows[0]);
+      const coreFields=Object.keys(_SI_CORE);
+      const catalog={}; Object.keys(CAT_FIELDS).forEach(c=>catalog[c]=CAT_FIELDS[c].map(f=>f.label));
+      showToast('AI mapping columns…','✨');
+      const resp=await fnSvc.httpsCallable('aiAssist')({mode:'map_import', headers, sampleRows:rows.slice(0,5), coreFields, catalog});
+      const r=(resp.data&&resp.data.result)||{};
+      _smartImport={ fname, rows, headers, coreFields, category:(r.category&&CAT_FIELDS[r.category])?r.category:'', mapping:r.mapping||{}, transforms:r.transforms||[] };
+      _renderSmartImport(); openModal('smartImportOverlay');
+    }catch(err){
+      const c=(err&&err.code)||'';
+      if(c.indexOf('resource-exhausted')>=0) showToast(err.message||'AI limit reached','⏳');
+      else if(c.indexOf('permission-denied')>=0) showToast('Smart Import is in limited testing','🔒');
+      else showToast('Smart Import failed: '+((err&&err.message)||'try again'),'⚠️');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+function _siTargets(){ const s=_smartImport; const cf=s.category?CAT_FIELDS[s.category].map(f=>f.label):[]; return ['ignore'].concat(s.coreFields).concat(cf); }
+function _siCapture(){ document.querySelectorAll('#smartImportBody [data-simap]').forEach(sel=>{ _smartImport.mapping[sel.getAttribute('data-simap')]=sel.value; }); }
+function _siSetCat(v){ _siCapture(); _smartImport.category=v; _renderSmartImport(); }
+function _renderSmartImport(){
+  const s=_smartImport; const body=document.getElementById('smartImportBody'); const cats=Object.keys(CAT_FIELDS);
+  const targets=_siTargets();
+  let html='<div class="field-row"><label>Detected category</label><select id="siCat" onchange="_siSetCat(this.value)"><option value="">— none (core fields only) —</option>'
+    + cats.map(c=>'<option value="'+escH(c)+'"'+(c===s.category?' selected':'')+'>'+escH(c)+'</option>').join('')+'</select></div>';
+  html+='<div class="section-heading">Column mapping</div><p style="font-size:12px;color:var(--text3);margin-bottom:8px">'+s.rows.length+' rows found. Check each column maps to the right field.</p>';
+  html+=s.headers.map(h=>{
+    const cur=s.mapping[h]||'ignore';
+    const opts=targets.map(t=>{ const seld=(t===cur||(t==='ignore'&&targets.indexOf(cur)<0))?' selected':''; return '<option value="'+escH(t)+'"'+seld+'>'+(t==='ignore'?'— ignore —':escH(t))+'</option>'; }).join('');
+    return '<div class="field-row-2" style="align-items:center;gap:8px"><div style="font-size:13px;color:var(--text2);word-break:break-word">'+escH(h)+'</div><div><select data-simap="'+escH(h)+'" onchange="_siRenderPreview()">'+opts+'</select></div></div>';
+  }).join('');
+  if(s.transforms&&s.transforms.length) html+='<div class="section-heading" style="margin-top:10px">AI notes</div><ul style="font-size:12px;color:var(--text3);margin:0 0 8px 18px">'+s.transforms.map(t=>'<li>'+escH(String(t))+'</li>').join('')+'</ul>';
+  html+='<div class="section-heading">Preview (first 3)</div><div id="siPreview" style="font-size:12px"></div>';
+  body.innerHTML=html;
+  const btn=document.getElementById('siImportBtn'); if(btn) btn.textContent='Import '+s.rows.length+' items';
+  _siRenderPreview();
+}
+function _siBuildItem(row){
+  const s=_smartImport; const cat=s.category;
+  const item={name:'',category:cat,groupId:'',condition:'',material:'',value:'',height:'',width:'',dimUnit:'mm',rating:0,quantity:1,obtainedDate:'',obtainedFrom:'',purchasePrice:'',seller:'',provenance:'',certRef:'',insurance:'',shortDesc:'',notes:'',history:'',tags:'',photos:[],extraFields:[],catFieldVals:{}};
+  const cfBy={}; if(cat) CAT_FIELDS[cat].forEach(f=>cfBy[f.label]=f.key);
+  s.headers.forEach(h=>{
+    const t=s.mapping[h]; if(!t||t==='ignore')return;
+    let v=row[h]; v=(v==null?'':String(v)).trim();
+    if(_SI_CORE[t]){ const k=_SI_CORE[t];
+      if(k==='value'){ item.value=_siNum(v); }
+      else if(k==='quantity'){ item.quantity=parseInt(String(v).replace(/[^0-9]/g,''),10)||1; }
+      else item[k]=v;
+    } else if(cfBy[t]){ item.catFieldVals[cfBy[t]]=v; }
+  });
+  if(!item.name){ const parts=Object.values(item.catFieldVals).filter(Boolean).slice(0,3); item.name=parts.join(' ').trim(); }
+  return item;
+}
+function _siRenderPreview(){
+  _siCapture(); const s=_smartImport;
+  const el=document.getElementById('siPreview'); if(!el) return;
+  el.innerHTML=s.rows.slice(0,3).map(r=>{ const it=_siBuildItem(r);
+    const cf=Object.entries(it.catFieldVals).filter(function(e){return e[1];}).map(function(e){return escH(e[0].replace(/^[a-z]+_/,''))+': '+escH(e[1]);}).join(', ');
+    return '<div style="padding:6px 0;border-bottom:1px solid var(--border)"><b>'+escH(it.name||'(no name)')+'</b>'+(it.category?(' · '+escH(it.category)):'')+(it.value?(' · $'+escH(it.value)):'')+(it.quantity>1?(' · ×'+it.quantity):'')+(cf?('<br><span style="color:var(--text3)">'+cf+'</span>'):'')+'</div>';
+  }).join('');
+}
+async function smartImportApply(){
+  _siCapture(); const s=_smartImport;
+  const items=s.rows.map(_siBuildItem).filter(it=> it.name || Object.keys(it.catFieldVals).length || it.notes || it.value);
+  if(!items.length){ showToast('Nothing to import — check the mapping','⚠️'); return; }
+  const colName='Imported: '+(s.fname||'spreadsheet');
+  const btn=document.getElementById('siImportBtn'); const orig=btn?btn.textContent:''; if(btn){btn.disabled=true; btn.textContent='Importing…';}
+  const now=()=>new Date().toISOString();
+  try{
+    if(firebaseMode){
+      setSyncStatus('syncing');
+      const colRef=await firestoreDb.collection(userPath()+'/collections').add({name:colName, category:s.category||'', icon:'📦', desc:'Imported via AI Smart Import', createdAt:now(), updatedAt:now()});
+      const grpRef=await firestoreDb.collection(userPath()+'/groups').add({name:'Imported items', category:s.category||'', icon:'📦', desc:'', collectionId:colRef.id, createdAt:now(), updatedAt:now()});
+      for(let i=0;i<items.length;i+=400){
+        const b=firestoreDb.batch();
+        items.slice(i,i+400).forEach(it=>{ const ref=firestoreDb.collection(userPath()+'/items').doc(); b.set(ref, Object.assign({}, it, {groupId:grpRef.id, createdAt:now(), updatedAt:now()})); });
+        await b.commit();
+      }
+      setSyncStatus('synced');
+    } else {
+      const colId=uid(); db.collections.push({id:colId,name:colName,category:s.category||'',icon:'📦',desc:'Imported via AI Smart Import',createdAt:now(),_open:true});
+      const grpId=uid(); db.groups.push({id:grpId,name:'Imported items',collectionId:colId,category:s.category||'',icon:'📦',desc:'',createdAt:now(),_open:true});
+      items.forEach(it=>db.items.push(Object.assign({id:uid()}, it, {groupId:grpId,createdAt:now()})));
+      saveLocal(); render();
+    }
+    closePanel('smartImportOverlay');
+    showToast('Imported '+items.length+' items into "'+colName+'"','✓');
+  }catch(e){ showToast('Import failed: '+((e&&e.message)||'try again'),'⚠️'); }
+  finally{ if(btn){btn.disabled=false; btn.textContent=orig||'Import items';} }
 }
 const APP_VERSION = '1.3.1';             // semantic version — quote in bug reports
 const APP_VERSION_DATE = '2026-09-01';   // release date of this build
