@@ -894,6 +894,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <div class="tab-content" id="tabPhotos">
         <div class="section-heading">📸 Item Photos</div>
         <p style="font-size:12px;color:var(--text3);margin-bottom:12px" id="photoUploadNote">Add photos to document your item. First photo = thumbnail.</p>
+        <button type="button" id="aiFillBtn" class="btn btn-outline btn-sm" style="display:none;margin-bottom:12px" onclick="aiFillFromPhoto()">✨ AI fill from photo</button>
         <div class="photo-grid" id="photoGrid">
           <button class="photo-add" onclick="document.getElementById('photoUpload').click()">
             <span class="add-icon">＋</span><span>Add Photo</span>
@@ -940,6 +941,23 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
         <button class="btn btn-outline" onclick="closePanel('aiTidyOverlay')">Keep mine</button>
         <button class="btn btn-gold" onclick="aiTidyAccept()">Use this</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AI FILL FROM PHOTO -->
+<div class="overlay" id="aiFillOverlay" onclick="closeIfBg(event,'aiFillOverlay')">
+  <div class="panel" onclick="event.stopPropagation()">
+    <div class="panel-header">
+      <div class="panel-title">✨ AI fill from photo</div>
+      <button class="btn btn-outline btn-sm" onclick="closePanel('aiFillOverlay')">✕</button>
+    </div>
+    <div class="panel-body">
+      <div id="aiFillBody"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn btn-outline" onclick="closePanel('aiFillOverlay')">Cancel</button>
+        <button class="btn btn-gold" onclick="aiFillApply()">Apply selected</button>
       </div>
     </div>
   </div>
@@ -1199,7 +1217,7 @@ const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCa
 // ── AI features (limited alpha): owners only, ignores FREE_FOR_ALL, until billing lands ──
 const AI_ALPHA_EMAILS = OWNER_PRO_EMAILS.map(e => e.toLowerCase());
 function isAiAlpha(){ return !!currentUser && AI_ALPHA_EMAILS.includes((currentUser.email||'').toLowerCase()); }
-function updateAiUi(){ const b=document.getElementById('aiTidyBtn'); if(b) b.style.display = isAiAlpha() ? '' : 'none'; }
+function updateAiUi(){ const on=isAiAlpha(); ['aiTidyBtn','aiFillBtn'].forEach(id=>{const b=document.getElementById(id); if(b) b.style.display = on ? '' : 'none';}); }
 let _aiTidyPending = '';
 async function aiTidyNotes(){
   if(!isAiAlpha()){ showToast('AI is in limited testing right now','\uD83D\uDD12'); return; }
@@ -1239,6 +1257,62 @@ function aiTidyAccept(){
   if(_aiTidyPending){ document.getElementById('fNotes').value = _aiTidyPending; showToast('Notes updated \u2014 save the item to keep','\u2728'); }
   _aiTidyPending='';
   closePanel('aiTidyOverlay');
+}
+
+// ── AI fill from photo (vision identify → review → apply; owner-only alpha) ──
+let _aiFill=null, _aiFillRows=[];
+async function _firstPhotoBase64(){
+  const ph=(editPhotoData||[]).find(x=>x&&x.url); if(!ph) return null;
+  let v=ph.url; if(typeof v!=='string') v=photoFull(v);
+  if(!v) return null;
+  if(v.indexOf('data:')===0){ const i=v.indexOf(','); return {b64:v.slice(i+1), mime:(v.slice(5,v.indexOf(';'))||'image/jpeg')}; }
+  const blob=await fetch(v,{cache:'force-cache'}).then(r=>r.blob());
+  const dataUrl=await new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result));fr.onerror=rej;fr.readAsDataURL(blob);});
+  const i=dataUrl.indexOf(','); return {b64:dataUrl.slice(i+1), mime:blob.type||'image/jpeg'};
+}
+async function aiFillFromPhoto(){
+  if(!isAiAlpha()){ showToast('AI is in limited testing right now','🔒'); return; }
+  if(!fnSvc){ showToast('AI unavailable — reload and try again','⚠️'); return; }
+  const cat=(typeof getCategoryValue==='function')?getCategoryValue():'';
+  const catFields=(CAT_FIELDS[cat]||[]);
+  const btn=document.getElementById('aiFillBtn'); const orig=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true; btn.innerHTML='… reading photo';}
+  try{
+    const img=await _firstPhotoBase64();
+    if(!img){ showToast('Add a photo first, then AI can read it','📸'); return; }
+    const resp=await fnSvc.httpsCallable('aiAssist')({mode:'identify', imageBase64:img.b64, mimeType:img.mime, category:cat, fields:catFields.map(f=>f.label)});
+    const r=(resp.data&&resp.data.result)||{};
+    _aiFill={cat, catFields, values:r.values||{}, basis:r.basis||{}, description:r.description||'', condition:r.condition_hint||''};
+    _renderAiFill(); openModal('aiFillOverlay');
+  }catch(e){
+    const c=(e&&e.code)||'';
+    if(c.indexOf('permission-denied')>=0) showToast('AI is in limited testing right now','🔒');
+    else if(c.indexOf('resource-exhausted')>=0) showToast(e.message||'AI limit reached','⏳');
+    else if(c.indexOf('unauthenticated')>=0) showToast('Sign in to use AI','🔒');
+    else showToast('AI fill failed: '+((e&&e.message)||'try again'),'⚠️');
+  }finally{ if(btn){btn.disabled=false; btn.innerHTML=orig;} }
+}
+function _renderAiFill(){
+  const f=_aiFill; const rows=[];
+  f.catFields.forEach(cf=>{ const val=f.values[cf.label]; if(!val||!String(val).trim())return;
+    const b=f.basis[cf.label]||'inferred'; rows.push({key:'cf_'+cf.key, label:cf.label, value:String(val), read:b==='read'}); });
+  if(f.description) rows.push({key:'fNotes', label:'Description (Full Notes)', value:f.description, read:true});
+  _aiFillRows=rows;
+  const body=document.getElementById('aiFillBody');
+  if(!rows.length){ body.innerHTML='<p style="color:var(--text3)">The AI couldn\'t read anything reliable from this photo. Try a clearer, closer shot.</p>'; return; }
+  body.innerHTML='<p style="font-size:12px;color:var(--text3);margin-bottom:10px">Tick what to apply. <b>read</b> = seen on the item; <b>guess</b> = less certain. Nothing is saved until you save the item.</p>'
+   + rows.map((r,i)=>'<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)">'
+     +'<input type="checkbox" data-aifill="'+i+'" '+(r.read?'checked':'')+' style="margin-top:3px">'
+     +'<span style="flex:1"><span style="font-size:12px;color:var(--text3)">'+escH(r.label)+'</span><br><span>'+escH(r.value)+'</span></span>'
+     +'<span style="font-size:10px;padding:2px 6px;border-radius:4px;'+(r.read?'background:rgba(201,168,76,.2);color:var(--gold)':'background:var(--surface2);color:var(--text3)')+'">'+(r.read?'read':'guess')+'</span></label>').join('');
+}
+function aiFillApply(){
+  let n=0;
+  document.querySelectorAll('#aiFillBody [data-aifill]').forEach(cb=>{ if(!cb.checked)return; const r=_aiFillRows[+cb.dataset.aifill]; if(!r)return;
+    const el=document.getElementById(r.key); if(!el)return;
+    if(r.key==='fNotes' && el.value.trim()){ el.value=el.value.trim()+'\n'+r.value; } else { el.value=r.value; } n++; });
+  showToast(n?('Applied '+n+' field'+(n>1?'s':'')+' — review & save'):'Nothing selected','✨');
+  closePanel('aiFillOverlay');
 }
 const APP_VERSION = '1.3.1';             // semantic version — quote in bug reports
 const APP_VERSION_DATE = '2026-09-01';   // release date of this build
