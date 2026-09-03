@@ -6,20 +6,11 @@ with the release date; the same list drives the in-app **What's New** panel
 
 ## [1.4.0] — 2026-09-03
 
-> The AI features below are in **limited (owner-only) testing** — not yet enabled for all users, so no public in-app "What's New" was fired for this build.
-
-### Added — AI (owner-only alpha; `aiAssist` Cloud Function, gated to AI_ALPHA_EMAILS)
-- **AI Tidy Up** — a "✨ AI Tidy Up" button on an item's Full Notes rewrites rough notes into clean, factual text without inventing facts. Preview before it's applied; never auto-saves.
-- **AI fill from photo (photo-first)** — "New Item" now offers "📷 Photo first": snap or choose a photo and AI picks the category and fills the fields it can read, leaving the rest blank to confirm. Also a "✨ AI fill from photo" button on the Photos tab. Pure vision (grounding off).
-- **AI Smart Import — "import from anything"** — a launcher that reads Excel, CSV, Word (.docx), PDF, a photo of a list, or pasted text; AI detects the category and maps columns/lines to Hoardr's fields; you review an editable mapping + live preview, then it imports into an isolated "Imported: …" collection you can delete in one tap. Shows a progress spinner while analysing and won't lose the result to a stray click.
-- **Backend:** `aiAssist` Firebase Cloud Function (Functions v2, Node 22, App Check + Auth enforced, per-user monthly quota + a global daily spend circuit-breaker, model `gemini-3.6-flash`). Costs are cents/month at alpha scale.
-
 ### Changed
-- **Toolbar consolidated** — the seven bottom-row buttons are grouped into **Export ▾ · Import · Backup ▾ · Share** on desktop, and the mobile "More" menu is reorganised into labelled sections (Create / Export / Import / Backup / Account).
-- **Import is now AI Smart Import** (reads any spreadsheet plus Word/PDF/image/paste). The old format-specific "Import Excel" (Hoardr/diecast layout only) was removed as redundant — full restores remain under **Backup → Load backup**.
+- Tidied up the toolbar — Export, Import and Backup are now grouped into clear menus on desktop, and the mobile menu is organised into labelled sections (Create / Export / Import / Backup / Account).
 
-### Investigated
-- **Grounding (live web research) for photo identification** was benchmarked and shelved — it lowered accuracy on niche items that can't be uniquely identified from a single photo. The Interactions-API grounding plumbing works and is retained for the planned **AI value estimate** feature, where a completed item's known details give the research strong anchors.
+### Added (in limited testing)
+- New AI helpers are being trialled and will roll out gradually: tidying up an item's notes, cataloguing an item from a photo, and a smarter Import that can read a spreadsheet, document, or a photo/pasted list.
 
 ## [1.3.1] — 2026-09-02
 
