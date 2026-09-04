@@ -268,6 +268,14 @@ textarea{resize:vertical;min-height:75px}
 .modal-box{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:26px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.7);transform:scale(.95);transition:transform .2s}
 .modal-overlay.open .modal-box{transform:scale(1)}
 .modal-title{font-family:'Playfair Display',serif;font-size:19px;color:var(--gold2);font-weight:700;margin-bottom:18px}
+.tour-slide{display:none}
+.tour-slide.on{display:block;animation:tourFade .25s ease}
+@keyframes tourFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.tour-dots{display:flex;gap:6px;justify-content:center;margin:16px 0 2px}
+.tour-dot{width:7px;height:7px;border-radius:50%;background:var(--border2);transition:all .2s}
+.tour-dot.on{background:var(--gold2);width:18px;border-radius:4px}
+.tour-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px}
+.tour-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12.5px;color:var(--text2)}
 .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
 .pdf-choice{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:10px;cursor:pointer;transition:all .18s ease;font-family:'IBM Plex Sans',sans-serif}
 .pdf-choice:hover{border-color:var(--gold);background:rgba(201,168,76,.06);transform:translateY(-1px)}
@@ -1230,23 +1238,58 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
 
 <div class="modal-overlay" id="onboardModal" onclick="closeIfBg(event,'onboardModal')">
   <div class="modal-box" onclick="event.stopPropagation()" style="max-width:440px">
-    <div style="text-align:center"><div style="width:60px;height:60px;margin:0 auto 10px;border-radius:14px;background:radial-gradient(circle at 50% 38%,#241f14,#0c0a06);border:1px solid #7a5a1e;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:900;font-size:30px;color:var(--gold2)">H</div></div>
-    <div class="modal-title" style="text-align:center;display:block">Welcome to Hoardr</div>
-    <p style="color:var(--text2);font-size:13px;text-align:center;margin:8px 0 14px">Hoardr is a private catalogue for your collections — belt buckles, diecast, stamps, cards, ceramics, anything. Record each piece with photos, condition and value, then search, sort and export it however you like.</p>
-    <p style="color:var(--text3);font-size:12px;text-align:center;margin:0 0 14px">Everything is organised in three simple levels:</p>
-    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px">
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">🗂</span> &nbsp;<b style="color:var(--gold2)">Collections</b> <span style="color:var(--text3);font-size:12px">— the top level, one for each thing you collect. e.g. "Diecast Models".</span></div>
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">📂</span> &nbsp;<b style="color:var(--gold2)">Groups</b> <span style="color:var(--text3);font-size:12px">— sections within a collection. e.g. "1:18 Porsches".</span></div>
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px"><span style="font-size:16px">📦</span> &nbsp;<b style="color:var(--gold2)">Items</b> <span style="color:var(--text3);font-size:12px">— each individual piece, with its photos, value, condition & notes.</span></div>
+    <div style="text-align:center"><div style="width:54px;height:54px;margin:0 auto 12px;border-radius:14px;background:radial-gradient(circle at 50% 38%,#241f14,#0c0a06);border:1px solid #7a5a1e;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:900;font-size:28px;color:var(--gold2)">H</div></div>
+    <div id="tourSlides" style="min-height:214px">
+
+      <div class="tour-slide on">
+        <div class="modal-title" style="text-align:center;display:block">Welcome to Hoardr</div>
+        <p style="color:var(--text2);font-size:13px;text-align:center;margin:8px 4px 4px;line-height:1.6">A private catalogue for everything you collect — belt buckles, diecast, stamps, cards, ceramics, anything. Record each piece with photos, condition and value, then search, sort and export it however you like.</p>
+      </div>
+
+      <div class="tour-slide">
+        <div class="modal-title" style="text-align:center;display:block">Three simple levels</div>
+        <p style="color:var(--text3);font-size:12px;text-align:center;margin:0 0 12px">Everything in Hoardr is organised like this:</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div class="tour-card"><span style="font-size:16px">🗂</span> &nbsp;<b style="color:var(--gold2)">Collections</b> <span style="color:var(--text3);font-size:12px">— the top level, one for each thing you collect. e.g. "Diecast Models".</span></div>
+          <div class="tour-card"><span style="font-size:16px">📂</span> &nbsp;<b style="color:var(--gold2)">Groups</b> <span style="color:var(--text3);font-size:12px">— sections within a collection. e.g. "1:18 Porsches".</span></div>
+          <div class="tour-card"><span style="font-size:16px">📦</span> &nbsp;<b style="color:var(--gold2)">Items</b> <span style="color:var(--text3);font-size:12px">— each individual piece, with its photos, value, condition & notes.</span></div>
+        </div>
+      </div>
+
+      <div class="tour-slide">
+        <div class="modal-title" style="text-align:center;display:block">Add your pieces, your way</div>
+        <p style="color:var(--text2);font-size:13px;text-align:center;margin:8px 4px 10px;line-height:1.6">Tap <b>＋</b> to add a Collection, Group or Item. Each item holds up to <b>6 photos</b> plus its condition, value, dimensions, tags and notes.</p>
+        <p style="color:var(--text3);font-size:12px;text-align:center;margin:0 4px;line-height:1.6">Pick a category — Diecast, Stamp, Belt Buckle and more — and Hoardr shows fields tailored to it (maker, year, scale, and so on). You can make your own categories too.</p>
+      </div>
+
+      <div class="tour-slide">
+        <div class="modal-title" style="text-align:center;display:block">Find it, show it off</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+          <div class="tour-card">🔎 &nbsp;<b style="color:var(--gold2)">Search, sort & filter</b> <span style="color:var(--text3);font-size:12px">by category to find any piece in seconds.</span></div>
+          <div class="tour-card">🔳 &nbsp;<b style="color:var(--gold2)">Grid or list</b> <span style="color:var(--text3);font-size:12px">views — however you like to browse.</span></div>
+          <div class="tour-card">🔗 &nbsp;<b style="color:var(--gold2)">Share</b> <span style="color:var(--text3);font-size:12px">a whole collection or a single item with a private link — friends see a clean page, no login needed.</span></div>
+        </div>
+      </div>
+
+      <div class="tour-slide">
+        <div class="modal-title" style="text-align:center;display:block">Yours, safe, and free</div>
+        <div style="background:var(--surface2);border:1px solid var(--gold-dim,#7a5a1e);border-radius:8px;padding:12px 14px;margin-top:6px">
+          <div style="color:var(--gold2);font-weight:700;font-size:13px;margin-bottom:6px;text-align:center">Everything's included — free</div>
+          <p style="color:var(--text3);font-size:11.5px;line-height:1.6;margin:0;text-align:center">Unlimited items and collections, up to 6 photos each, Excel &amp; photo-catalogue PDF exports, insurance schedules, and cloud backup. No ads, no locked features, no catch.</p>
+        </div>
+        <p style="color:var(--text3);font-size:12px;text-align:center;margin:14px 4px 0">Reopen this guide anytime from the <b>?</b> button up top.</p>
+      </div>
+
     </div>
-    <div style="margin:16px 0 6px;border-top:1px solid var(--border);padding-top:14px">
-      <div style="background:var(--surface2);border:1px solid var(--gold-dim,#7a5a1e);border-radius:8px;padding:12px 14px">
-        <div style="color:var(--gold2);font-weight:700;font-size:13px;margin-bottom:6px;text-align:center">Everything's included — free</div>
-        <p style="color:var(--text3);font-size:11.5px;line-height:1.6;margin:0;text-align:center">Unlimited items and collections, up to 6 photos each, Excel &amp; photo-catalogue PDF exports, insurance schedules, and cloud backup. No ads, no locked features, no catch.</p>
+    <div class="tour-dots" id="tourDots"></div>
+    <div class="tour-nav">
+      <button class="btn btn-outline btn-sm" id="tourSkip" onclick="closeOnboarding(true)">Skip</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline btn-sm" id="tourBack" onclick="tourBack()" style="display:none">← Back</button>
+        <button class="btn btn-gold btn-sm" id="tourNext" onclick="tourNext()">Next →</button>
       </div>
     </div>
-    <p style="color:var(--text3);font-size:12px;text-align:center;margin:14px 0 12px">Start by tapping <b>＋</b> and choosing <b>New Collection</b> — then add Groups, then Items. Reach this guide again from the <b>?</b> button up top.</p>
-    <button class="btn btn-gold" style="width:100%;justify-content:center" onclick="closeOnboarding(true)">Get started →</button>
+  
   </div>
 </div>
 
@@ -3563,7 +3606,26 @@ async function doBulkMove(ids, gid){
   selectedIds.clear();
   showToast(`Moved ${ids.length} item(s)`,'✓');
 }
-function showOnboarding(){ _openLayer('onboardModal', true); }
+function showOnboarding(){ _tourStep=0; _openLayer('onboardModal', true); tourRender(); }
+let _tourStep=0;
+function _tourSlides(){ return Array.from(document.querySelectorAll('#tourSlides .tour-slide')); }
+function tourRender(){
+  const slides=_tourSlides(); const n=slides.length; if(!n) return;
+  _tourStep=Math.max(0,Math.min(_tourStep,n-1));
+  slides.forEach((el,i)=>el.classList.toggle('on', i===_tourStep));
+  const dots=document.getElementById('tourDots');
+  if(dots) dots.innerHTML=slides.map((_,i)=>'<span class="tour-dot'+(i===_tourStep?' on':'')+'"></span>').join('');
+  const back=document.getElementById('tourBack'); if(back) back.style.display=(_tourStep===0)?'none':'';
+  const skip=document.getElementById('tourSkip'); if(skip) skip.style.display=(_tourStep===n-1)?'none':'';
+  const next=document.getElementById('tourNext'); if(next) next.innerHTML=(_tourStep===n-1)?'Create first collection →':'Next →';
+}
+function tourGo(i){ _tourStep=i; tourRender(); }
+function tourBack(){ if(_tourStep>0) tourGo(_tourStep-1); }
+function tourNext(){
+  const n=_tourSlides().length;
+  if(_tourStep>=n-1){ closeOnboarding(true); if(typeof openCollectionModal==='function') openCollectionModal(); return; }
+  tourGo(_tourStep+1);
+}
 function closeOnboarding(markSeen){
   if(markSeen){ try{localStorage.setItem('hoardr_onboarded','1');}catch(e){} }
   _closeLayer('onboardModal');
