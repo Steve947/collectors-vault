@@ -1060,6 +1060,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
         <button class="btn btn-outline btn-sm" id="editFromViewBtn">✏️ Edit</button>
         <button class="btn btn-blue btn-sm" id="dupFromViewBtn">⧉ Duplicate</button>
         <button class="btn btn-outline btn-sm" id="shareFromViewBtn">🔗 Share</button>
+        <button class="btn btn-outline btn-sm" id="aiValueViewBtn" style="display:none" onclick="aiEstimateValueView()" title="AI market-value estimate">✨ AI estimate</button>
       </div>
     </div>
     <div class="panel-body" id="viewPanelBody"></div>
@@ -1303,7 +1304,7 @@ const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCa
 // ── AI features (limited alpha): owners only, ignores FREE_FOR_ALL, until billing lands ──
 const AI_ALPHA_EMAILS = OWNER_PRO_EMAILS.map(e => e.toLowerCase());
 function isAiAlpha(){ return !!currentUser && AI_ALPHA_EMAILS.includes((currentUser.email||'').toLowerCase()); }
-function updateAiUi(){ const on=isAiAlpha(); ['aiTidyBtn','aiFillBtn','aiValueBtn','smartImportLabelD','importSecM'].forEach(id=>{const b=document.getElementById(id); if(b) b.style.display = on ? '' : 'none';}); }
+function updateAiUi(){ const on=isAiAlpha(); ['aiTidyBtn','aiFillBtn','aiValueBtn','aiValueViewBtn','smartImportLabelD','importSecM'].forEach(id=>{const b=document.getElementById(id); if(b) b.style.display = on ? '' : 'none';}); }
 let _aiTidyPending = '';
 async function aiTidyNotes(){
   if(!isAiAlpha()){ showToast('AI is in limited testing right now','\uD83D\uDD12'); return; }
@@ -1373,16 +1374,12 @@ async function aiEstimateValue(){
     const resp=await fnSvc.httpsCallable('aiAssist')({mode:'value', item:ctx, currency:(typeof curCode==='function'?curCode():'AUD')});
     const r=(resp.data&&resp.data.result)||{};
     const g=(resp.data&&resp.data.grounding)||{};
-    _aiValuePending = r;
+    const _eid=(document.getElementById('editId')||{}).value||null;
+    _aiValuePending = { r:r, ctx:'edit', itemId:_eid };
+    if(_eid){ const _it=db.items.find(i=>i.id===_eid); if(_it) _logValueEstimate(_it, r); }
     _renderAiValue(r, g);
     openModal('aiValueOverlay');
-  }catch(e){
-    const c=(e&&e.code)||'';
-    if(c.indexOf('permission-denied')>=0) showToast('AI is in limited testing right now','🔒');
-    else if(c.indexOf('resource-exhausted')>=0) showToast(e.message||'AI limit reached','⏳');
-    else if(c.indexOf('unauthenticated')>=0) showToast('Sign in to use AI','🔒');
-    else showToast('Estimate failed: '+((e&&e.message)||'try again'),'⚠️');
-  }finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
+  }catch(e){ _aiValueErr(e); }finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
 }
 function _aiValMoney(n){ if(n==null||isNaN(n)) return '—'; const s=(typeof curSym==='function'?curSym():'$'); return s+Number(n).toLocaleString(undefined,{maximumFractionDigits:2}); }
 function _renderAiValue(r, g){
@@ -1417,14 +1414,88 @@ function _renderAiValue(r, g){
   const useBtn=document.getElementById('aiValueUseBtn');
   if(useBtn) useBtn.style.display = hasNum ? '' : 'none';
 }
-function aiValueApply(){
-  const r=_aiValuePending||{};
+async function aiValueApply(){
+  const P=_aiValuePending||{}; const r=P.r||{};
   let v = r.typical!=null ? r.typical : ((r.low!=null&&r.high!=null)?(r.low+r.high)/2 : (r.low!=null?r.low:r.high));
   if(v==null||isNaN(v)){ showToast('No value to apply','⚠️'); return; }
-  document.getElementById('fValue').value = Math.round(Number(v)*100)/100;
-  showToast('Value set — save the item to keep','✨');
-  _aiValuePending=null;
-  closePanel('aiValueOverlay');
+  v = Math.round(Number(v)*100)/100;
+  if(P.ctx==='view'){
+    const item=db.items.find(i=>i.id===P.itemId);
+    if(!item){ showToast('Item not found','⚠️'); return; }
+    item.value=String(v);   // user can still edit this manually in the editor
+    try{
+      if(firebaseMode && currentUser){ await firestoreDb.doc(`${userPath()}/items/${item.id}`).update({ value:String(v), updatedAt:new Date().toISOString() }); }
+      else if(typeof saveLocally==='function'){ saveLocally(); }
+      showToast('Estimated value updated — you can still change it by hand','✨');
+      _aiValuePending=null;
+      closePanel('aiValueOverlay');
+      viewItem(item.id);
+    }catch(e){ showToast('Couldn\'t save value: '+((e&&e.message)||'try again'),'⚠️'); }
+  } else {
+    const fv=document.getElementById('fValue'); if(fv) fv.value=v;
+    showToast('Value set — save the item to keep','✨');
+    _aiValuePending=null;
+    closePanel('aiValueOverlay');
+  }
+}
+function _aiValueErr(e){
+  const c=(e&&e.code)||'';
+  if(c.indexOf('permission-denied')>=0) showToast('AI is in limited testing right now','🔒');
+  else if(c.indexOf('resource-exhausted')>=0) showToast(e.message||'AI limit reached','⏳');
+  else if(c.indexOf('unauthenticated')>=0) showToast('Sign in to use AI','🔒');
+  else showToast('Estimate failed: '+((e&&e.message)||'try again'),'⚠️');
+}
+function _aiValItemFromObject(item){
+  const ctx={ name:item.name||'', category:item.category||'', condition:item.condition||'', material:item.material||'' };
+  const labelByKey={};
+  if(item.category && typeof CAT_FIELDS!=='undefined' && CAT_FIELDS[item.category]) CAT_FIELDS[item.category].forEach(f=>{ labelByKey[f.key]=f.label; });
+  if(item.catFieldVals) Object.entries(item.catFieldVals).forEach(([k,val])=>{ if(val&&String(val).trim()) ctx[labelByKey[k]||k]=String(val).trim(); });
+  (item.extraFields||[]).forEach(f=>{ if(f&&f.label&&f.value) ctx[f.label]=f.value; });
+  if(item.shortDesc&&item.shortDesc.trim()) ctx['Short description']=item.shortDesc.trim();
+  return ctx;
+}
+async function aiEstimateValueView(){
+  if(!isAiAlpha()){ showToast('AI is in limited testing right now','🔒'); return; }
+  if(!fnSvc){ showToast('AI unavailable — reload and try again','⚠️'); return; }
+  const item=db.items.find(i=>i.id===selectedItemId);
+  if(!item){ showToast('Open an item first','⚠️'); return; }
+  if(!(item.name && item.name.trim())){ showToast('This item needs a name (and any maker/model) to estimate','✍️'); return; }
+  const btn=document.getElementById('aiValueViewBtn'); const orig=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='… estimating'; }
+  try{
+    const resp=await fnSvc.httpsCallable('aiAssist')({mode:'value', item:_aiValItemFromObject(item), currency:(typeof curCode==='function'?curCode():'AUD')});
+    const r=(resp.data&&resp.data.result)||{};
+    const g=(resp.data&&resp.data.grounding)||{};
+    _aiValuePending={ r:r, ctx:'view', itemId:item.id };
+    await _logValueEstimate(item, r);
+    viewItem(item.id);
+    _renderAiValue(r, g);
+    openModal('aiValueOverlay');
+  }catch(e){ _aiValueErr(e); }
+  finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
+}
+async function _logValueEstimate(item, r){
+  try{
+    if(!item||!item.id) return;
+    const t = r.typical!=null ? r.typical : ((r.low!=null&&r.high!=null)?(r.low+r.high)/2 : null);
+    if(t==null||isNaN(t)) return;
+    const entry={ typical:Number(t), low:(r.low!=null?Number(r.low):null), high:(r.high!=null?Number(r.high):null), currency:r.currency||(typeof curCode==='function'?curCode():'AUD'), confidence:r.confidence||'low', at:new Date().toISOString() };
+    const hist=(Array.isArray(item.valueHistory)?item.valueHistory.slice():[]);
+    hist.push(entry);
+    while(hist.length>24) hist.shift();
+    item.valueHistory=hist;
+    if(firebaseMode && currentUser){ await firestoreDb.doc(`${userPath()}/items/${item.id}`).update({ valueHistory:hist, updatedAt:new Date().toISOString() }); }
+    else if(typeof saveLocally==='function'){ saveLocally(); }
+  }catch(e){ console.warn('value history log failed (non-fatal):', e); }
+}
+function _lastEstStr(item){
+  const h=(item.valueHistory||[]); if(!h.length) return '';
+  const e=h[h.length-1]; if(!e||e.typical==null) return '';
+  let out=fmtMoney(e.typical);
+  if(e.low!=null&&e.high!=null) out+=' ('+fmtMoney(e.low)+'–'+fmtMoney(e.high)+')';
+  if(e.confidence) out+=' · '+e.confidence;
+  const d=(e.at||'').slice(0,10); if(d) out+=' · '+d;
+  return escH(out);
 }
 
 // ── AI fill from photo (vision identify → review → apply; owner-only alpha) ──
@@ -3107,6 +3178,7 @@ function viewItem(id) {
       ${item.material?`<div class="detail-field"><div class="detail-field-label">Material</div><div class="detail-field-value">${escH(item.material)}</div></div>`:''}
       ${(item.height||item.width)?`<div class="detail-field"><div class="detail-field-label">Dimensions</div><div class="detail-field-value">${escH(dimStr(item))}</div></div>`:''}
       ${item.value?`<div class="detail-field"><div class="detail-field-label">Est. Value</div><div class="detail-field-value" style="color:var(--gold2)">${fmtMoney(item.value)}</div></div>`:''}
+      ${(item.valueHistory&&item.valueHistory.length)?`<div class="detail-field"><div class="detail-field-label">AI estimate</div><div class="detail-field-value" style="color:var(--text2);font-size:12px">${_lastEstStr(item)}</div></div>`:''}
       ${item.obtainedDate?`<div class="detail-field"><div class="detail-field-label">Date Obtained</div><div class="detail-field-value">${item.obtainedDate}</div></div>`:''}
       ${item.obtainedFrom?`<div class="detail-field"><div class="detail-field-label">Obtained From</div><div class="detail-field-value">${escH(item.obtainedFrom)}</div></div>`:''}
       ${item.purchasePrice?`<div class="detail-field"><div class="detail-field-label">Purchase Price</div><div class="detail-field-value">${fmtMoney(item.purchasePrice)}</div></div>`:''}
