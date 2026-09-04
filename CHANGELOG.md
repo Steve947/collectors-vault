@@ -4,6 +4,11 @@ All notable changes to Hoardr are recorded here. Versioning is `MAJOR.MINOR.PATC
 with the release date; the same list drives the in-app **What's New** panel
 (Profile → "What's new"). Newest first.
 
+## [1.4.1] — 2026-09-04
+
+### Added (in limited testing)
+- **AI value estimate.** An "✨ AI estimate" button on the item editor's Estimated Value field asks the AI for a current secondary-market value, based on real comparable sales and listings it finds via web search. Returns a low/typical/high range in your currency plus a confidence level, a short rationale, the comparables and the sources. Review it, then optionally apply the typical figure to the Value field — nothing is saved until you save the item. Owner-only while AI is in alpha; counts against the same monthly AI quota.
+
 ## [1.4.0] — 2026-09-03
 
 ### Changed

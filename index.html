@@ -862,7 +862,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
           </div>
         </div>
         <div class="field-row-2">
-          <div><label id="lblValue">Estimated Value ($)</label><input type="number" id="fValue" placeholder="0.00" step="0.01"></div>
+          <div><label style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:0"><span id="lblValue">Estimated Value ($)</span><button type="button" id="aiValueBtn" class="btn btn-outline btn-sm" style="display:none" onclick="aiEstimateValue()">✨ AI estimate</button></label><input type="number" id="fValue" placeholder="0.00" step="0.01"></div>
           <div><label>Rating (1–5)</label>
             <div class="rating-stars" id="ratingStars">
               <span class="star" onclick="setRating(1)">★</span><span class="star" onclick="setRating(2)">★</span>
@@ -944,6 +944,21 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
 </div>
 
 <!-- AI TIDY PREVIEW -->
+<div class="overlay" id="aiValueOverlay" onclick="closeIfBg(event,'aiValueOverlay')">
+  <div class="panel" onclick="event.stopPropagation()">
+    <div class="panel-header">
+      <div class="panel-title">✨ AI value estimate</div>
+      <button class="btn btn-outline btn-sm" onclick="closePanel('aiValueOverlay')">✕</button>
+    </div>
+    <div class="panel-body">
+      <div id="aiValueBody"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px">
+        <button class="btn btn-outline" onclick="closePanel('aiValueOverlay')">Close</button>
+        <button class="btn btn-gold" id="aiValueUseBtn" onclick="aiValueApply()">Use this value</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="aiTidyOverlay" onclick="closeIfBg(event,'aiTidyOverlay')">
   <div class="panel" onclick="event.stopPropagation()">
     <div class="panel-header">
@@ -1289,7 +1304,7 @@ const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCa
 // ── AI features (limited alpha): owners only, ignores FREE_FOR_ALL, until billing lands ──
 const AI_ALPHA_EMAILS = OWNER_PRO_EMAILS.map(e => e.toLowerCase());
 function isAiAlpha(){ return !!currentUser && AI_ALPHA_EMAILS.includes((currentUser.email||'').toLowerCase()); }
-function updateAiUi(){ const on=isAiAlpha(); ['aiTidyBtn','aiFillBtn','smartImportLabelD','importSecM'].forEach(id=>{const b=document.getElementById(id); if(b) b.style.display = on ? '' : 'none';}); }
+function updateAiUi(){ const on=isAiAlpha(); ['aiTidyBtn','aiFillBtn','aiValueBtn','smartImportLabelD','importSecM'].forEach(id=>{const b=document.getElementById(id); if(b) b.style.display = on ? '' : 'none';}); }
 let _aiTidyPending = '';
 async function aiTidyNotes(){
   if(!isAiAlpha()){ showToast('AI is in limited testing right now','\uD83D\uDD12'); return; }
@@ -1329,6 +1344,88 @@ function aiTidyAccept(){
   if(_aiTidyPending){ document.getElementById('fNotes').value = _aiTidyPending; showToast('Notes updated \u2014 save the item to keep','\u2728'); }
   _aiTidyPending='';
   closePanel('aiTidyOverlay');
+}
+
+// ── AI value estimate (grounded market-value estimate → review → apply; owner-only alpha) ──
+let _aiValuePending = null;
+function _aiValItemContext(){
+  const cat = (typeof getCategoryValue==='function') ? getCategoryValue() : '';
+  const ctx = {
+    name: (document.getElementById('fName')||{}).value || '',
+    category: cat,
+    condition: (document.getElementById('fCondition')||{}).value || '',
+    material: (typeof getMaterialValue==='function') ? getMaterialValue() : ''
+  };
+  const labelByKey = {};
+  if(cat && typeof CAT_FIELDS!=='undefined' && CAT_FIELDS[cat]) CAT_FIELDS[cat].forEach(f=>{ labelByKey[f.key]=f.label; });
+  document.querySelectorAll('[data-catfield]').forEach(el=>{ const v=(el.value||'').trim(); if(v){ ctx[labelByKey[el.dataset.catfield]||el.dataset.catfield]=v; } });
+  document.querySelectorAll('.extra-field-row').forEach(row=>{ const l=(row.querySelector('.extra-lbl')||{}).value; const v=(row.querySelector('.extra-val')||{}).value; if(l&&l.trim()&&v&&v.trim()) ctx[l.trim()]=v.trim(); });
+  const sd=(document.getElementById('fShortDesc')||{}).value||''; if(sd.trim()) ctx['Short description']=sd.trim();
+  return ctx;
+}
+async function aiEstimateValue(){
+  if(!isAiAlpha()){ showToast('AI is in limited testing right now','🔒'); return; }
+  if(!fnSvc){ showToast('AI unavailable — reload and try again','⚠️'); return; }
+  const ctx=_aiValItemContext();
+  if(!(ctx.name && ctx.name.trim())){ showToast('Add at least a name (and any maker/model) first','✍️'); return; }
+  const btn=document.getElementById('aiValueBtn'); const orig=btn?btn.innerHTML:'';
+  if(btn){ btn.disabled=true; btn.innerHTML='… estimating'; }
+  try{
+    const resp=await fnSvc.httpsCallable('aiAssist')({mode:'value', item:ctx, currency:(typeof curCode==='function'?curCode():'AUD')});
+    const r=(resp.data&&resp.data.result)||{};
+    const g=(resp.data&&resp.data.grounding)||{};
+    _aiValuePending = r;
+    _renderAiValue(r, g);
+    openModal('aiValueOverlay');
+  }catch(e){
+    const c=(e&&e.code)||'';
+    if(c.indexOf('permission-denied')>=0) showToast('AI is in limited testing right now','🔒');
+    else if(c.indexOf('resource-exhausted')>=0) showToast(e.message||'AI limit reached','⏳');
+    else if(c.indexOf('unauthenticated')>=0) showToast('Sign in to use AI','🔒');
+    else showToast('Estimate failed: '+((e&&e.message)||'try again'),'⚠️');
+  }finally{ if(btn){ btn.disabled=false; btn.innerHTML=orig; } }
+}
+function _aiValMoney(n){ if(n==null||isNaN(n)) return '—'; const s=(typeof curSym==='function'?curSym():'$'); return s+Number(n).toLocaleString(undefined,{maximumFractionDigits:2}); }
+function _renderAiValue(r, g){
+  const body=document.getElementById('aiValueBody');
+  const conf=(r.confidence||'low');
+  const confColor = conf==='high'?'var(--gold)':(conf==='medium'?'#c9a84c':'var(--text3)');
+  const mid = r.typical!=null ? r.typical : ((r.low!=null&&r.high!=null)?(r.low+r.high)/2 : (r.low!=null?r.low:r.high));
+  const hasNum = mid!=null && !isNaN(mid);
+  let html='';
+  if(!hasNum){
+    html+='<p style="color:var(--text3)">The AI couldn\'t find enough comparable sales to estimate a value for this item. Try adding the maker, model, edition/scale and condition, then estimate again.</p>';
+  } else {
+    html+='<div style="text-align:center;margin:6px 0 14px">'
+      +'<div style="font-size:12px;color:var(--text3)">Estimated typical value</div>'
+      +'<div style="font-size:30px;font-weight:700;color:var(--gold)">'+_aiValMoney(mid)+'</div>'
+      +'<div style="font-size:13px;color:var(--text2)">Range '+_aiValMoney(r.low)+' – '+_aiValMoney(r.high)+' '+escH(r.currency||'')+'</div>'
+      +'<div style="margin-top:6px;font-size:11px"><span style="padding:2px 8px;border-radius:10px;background:var(--surface2);color:'+confColor+'">'+escH(conf)+' confidence</span></div>'
+      +'</div>';
+  }
+  if(r.rationale) html+='<p style="font-size:13px;color:var(--text2);margin:8px 0">'+escH(r.rationale)+'</p>';
+  if(Array.isArray(r.comparables)&&r.comparables.length){
+    html+='<div style="font-size:12px;color:var(--text3);margin-top:8px">Comparables the AI found</div><ul style="margin:4px 0 8px;padding-left:18px;font-size:12px;color:var(--text2)">'
+      +r.comparables.map(c=>'<li>'+escH(c)+'</li>').join('')+'</ul>';
+  }
+  const src=(g&&g.sources)||[];
+  if(src.length){
+    html+='<div style="font-size:12px;color:var(--text3);margin-top:8px">Sources</div><ul style="margin:4px 0 8px;padding-left:18px;font-size:12px">'
+      +src.map(s=>{ const t=(typeof s==='string')?s:(s.title||s.url||''); const u=(s&&s.url)?s.url:''; return '<li>'+(u?'<a href="'+escH(u)+'" target="_blank" rel="noopener" style="color:var(--gold)">'+escH(t||u)+'</a>':escH(t))+'</li>'; }).join('')+'</ul>';
+  }
+  html+='<p style="font-size:11px;color:var(--text3);margin-top:10px">Estimate only — a starting point, not an appraisal or an offer. Sanity-check before insuring or selling.'+(r.as_of?(' As of '+escH(r.as_of)+'.'):'')+'</p>';
+  body.innerHTML=html;
+  const useBtn=document.getElementById('aiValueUseBtn');
+  if(useBtn) useBtn.style.display = hasNum ? '' : 'none';
+}
+function aiValueApply(){
+  const r=_aiValuePending||{};
+  let v = r.typical!=null ? r.typical : ((r.low!=null&&r.high!=null)?(r.low+r.high)/2 : (r.low!=null?r.low:r.high));
+  if(v==null||isNaN(v)){ showToast('No value to apply','⚠️'); return; }
+  document.getElementById('fValue').value = Math.round(Number(v)*100)/100;
+  showToast('Value set — save the item to keep','✨');
+  _aiValuePending=null;
+  closePanel('aiValueOverlay');
 }
 
 // ── AI fill from photo (vision identify → review → apply; owner-only alpha) ──
