@@ -1498,6 +1498,52 @@ function _lastEstStr(item){
   const d=(e.at||'').slice(0,10); if(d) out+=' · '+d;
   return escH(out);
 }
+function _valueSparkline(item){
+  const pts=(item.valueHistory||[]).filter(e=>e&&e.typical!=null&&!isNaN(e.typical));
+  const n=pts.length;
+  if(n<2) return '';
+  const W=320,H=64,pad=8;
+  const vals=pts.map(e=>Number(e.typical));
+  const lows=pts.map(e=>(e.low!=null&&!isNaN(e.low))?Number(e.low):null);
+  const highs=pts.map(e=>(e.high!=null&&!isNaN(e.high))?Number(e.high):null);
+  const hasBand=lows.every(v=>v!=null)&&highs.every(v=>v!=null);
+  let lo=Math.min.apply(null, vals.concat(hasBand?lows:[]));
+  let hi=Math.max.apply(null, vals.concat(hasBand?highs:[]));
+  if(hi===lo){ hi=lo+1; lo=lo-1; }
+  const x=i=> pad+(W-2*pad)*(i/(n-1));
+  const y=v=> pad+(H-2*pad)*(1-(v-lo)/(hi-lo));
+  const line=vals.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+  let band='';
+  if(hasBand){
+    let top=highs.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+    let bot='';
+    for(let i=n-1;i>=0;i--){ bot+='L'+x(i).toFixed(1)+' '+y(lows[i]).toFixed(1)+' '; }
+    band='<path d="'+top+' '+bot+'Z" fill="rgba(201,168,76,.13)" stroke="none"/>';
+  }
+  const dots=pts.map((e,i)=>{
+    const big=(i===n-1);
+    const t=escH(fmtMoney(e.typical)+' · '+((e.at||'').slice(0,10)));
+    return '<circle cx="'+x(i).toFixed(1)+'" cy="'+y(vals[i]).toFixed(1)+'" r="'+(big?3.2:2.2)+'" fill="var(--gold2)"><title>'+t+'</title></circle>';
+  }).join('');
+  const first=pts[0], last=pts[n-1];
+  const chg=Number(last.typical)-Number(first.typical);
+  const pct=Number(first.typical)?(chg/Number(first.typical)*100):0;
+  const up=chg>=0;
+  const chgStr=(up?'▲':'▼')+' '+fmtMoney(Math.abs(chg))+' ('+Math.abs(pct).toFixed(0)+'%)';
+  const col=up?'#6cc47a':'#c96a5a';
+  return '<div class="section-heading" style="margin-top:14px">📈 Value over time</div>'
+    +'<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">'
+      +'<span style="font-size:18px;font-weight:700;color:var(--gold2)">'+escH(fmtMoney(last.typical))+'</span>'
+      +'<span style="font-size:12px;color:'+col+'">'+escH(chgStr)+'</span></div>'
+    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block" role="img" aria-label="Value over time">'
+      +band
+      +'<path d="'+line+'" fill="none" stroke="var(--gold2)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+      +dots+'</svg>'
+    +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:2px"><span>'+escH((first.at||'').slice(0,10))+'</span><span>'+escH((last.at||'').slice(0,10))+'</span></div>'
+    +'<div style="font-size:10px;color:var(--text3);margin-top:6px">AI estimates over time · not an appraisal</div>'
+    +'</div>';
+}
 
 // ── AI fill from photo (vision identify → review → apply; owner-only alpha) ──
 let _aiFill=null, _aiFillRows=[], _pendingAiAfterPhoto=false;
@@ -3188,6 +3234,7 @@ function viewItem(id) {
       ${item.certRef?`<div class="detail-field"><div class="detail-field-label">Cert / Ref #</div><div class="detail-field-value">${escH(item.certRef)}</div></div>`:''}
       ${catSpecHtml}${extraHtml}
     </div>
+    ${_valueSparkline(item)}
     ${item.notes?`<div class="section-heading" style="margin-top:8px">📝 Notes</div><div class="detail-notes">${escH(item.notes)}</div>`:''}
     ${item.history?`<div class="section-heading" style="margin-top:14px">📜 History</div><div class="detail-notes">${escH(item.history)}</div>`:''}
     ${item.tags?`<div style="margin-top:14px"><div class="detail-field-label" style="margin-bottom:7px">Tags</div><div class="tags-wrap">${item.tags.split(',').map(t=>`<span class="tag">${escH(t.trim())}</span>`).join('')}</div></div>`:''}
