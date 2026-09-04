@@ -1060,7 +1060,6 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
         <button class="btn btn-outline btn-sm" id="editFromViewBtn">✏️ Edit</button>
         <button class="btn btn-blue btn-sm" id="dupFromViewBtn">⧉ Duplicate</button>
         <button class="btn btn-outline btn-sm" id="shareFromViewBtn">🔗 Share</button>
-        <button class="btn btn-outline btn-sm" onclick="checkSoldPrices()" title="Check recent eBay sold prices (Pro)">💲 Sold prices</button>
       </div>
     </div>
     <div class="panel-body" id="viewPanelBody"></div>
@@ -1734,12 +1733,6 @@ async function loadCurrencyPref(){
   try{ render(); }catch(e){}
 }
 function maxPhotos(){ return isPro() ? PRO_MAX_PHOTOS : FREE_MAX_PHOTOS; }
-function checkSoldPrices(){
-  if(!isPro()){ showToast('Check sold prices is a Pro feature — coming soon','🔒'); return; }
-  const item=db.items.find(i=>i.id===selectedItemId);
-  if(!item||!item.name){ showToast('Open an item first','⚠️'); return; }
-  window.open('https://www.ebay.com/sch/i.html?_nkw='+encodeURIComponent(item.name)+'&LH_Sold=1&LH_Complete=1','_blank');
-}
 let editPhotoData = [];   // { url: <original photo value>, isNew: bool, file?: File }
 
 // ═══════════════════════════════════════════════════════════
