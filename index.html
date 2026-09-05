@@ -629,7 +629,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
   <div class="mm-grid">
     <button class="btn btn-outline" onclick="openCollectionModal();toggleMobileMenu()">＋ Collection</button>
     <button class="btn btn-outline" onclick="openGroupModal();toggleMobileMenu()">＋ Group</button>
-    <button class="btn btn-outline" style="grid-column:1/-1" onclick="showCollectionSummary();toggleMobileMenu()">📊 Summary</button>
+    <button class="btn btn-outline" style="grid-column:1/-1" onclick="showCollectionSummary();toggleMobileMenu()">📊 Dashboard</button>
   </div>
   <div class="mm-sec">Export</div>
   <div class="mm-grid">
@@ -719,7 +719,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <div class="toolbar-divider"></div>
       <span id="itemCount" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3)">0 items</span>
       <div class="spacer"></div>
-      <button class="btn btn-outline btn-sm" onclick="showCollectionSummary()" title="View value totals">📊 Summary</button>
+      <button class="btn btn-outline btn-sm" onclick="showCollectionSummary()" title="Collection value dashboard">📊 Dashboard</button>
       <select id="sortSelect" onchange="setSort(this.value)" title="Sort items" class="toolbar-select">
         <option value="">Sort: Name (A–Z)</option>
         <option value="name|-1">Name (Z–A)</option>
@@ -945,7 +945,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
 <div class="overlay" id="summaryOverlay" onclick="closeIfBg(event,'summaryOverlay')">
   <div class="panel" onclick="event.stopPropagation()">
     <div class="panel-header">
-      <div class="panel-title">📊 Collection Summary</div>
+      <div class="panel-title">📊 Dashboard</div>
       <button class="btn btn-outline btn-sm" onclick="closePanel('summaryOverlay')">✕</button>
     </div>
     <div class="panel-body" id="summaryPanelBody"></div>
@@ -1302,6 +1302,9 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <div id="pfVerifyRow" style="font-size:12px;margin:-6px 0 14px"></div>
     <button class="btn btn-gold" style="width:100%;justify-content:center;margin-bottom:10px" onclick="saveProfile()">Save changes</button>
     <div id="pfPasswordRow"><button class="btn btn-outline" style="width:100%;justify-content:center" onclick="changePasswordEmail()">🔑 Send password reset email</button></div>
+    <hr class="section-divider">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">🔔 Notifications</div>
+    <div id="pfNotif"></div>
     <hr class="section-divider">
     <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Help &amp; contact</div>
     <p style="font-size:12px;color:var(--text3);margin-bottom:10px">Questions, bugs or feature ideas — we read every message.</p>
@@ -1889,9 +1892,81 @@ async function loadCurrencyPref(){
       try{ localStorage.setItem('hoardrCustomCats',JSON.stringify(customCats)); }catch(e){}
       refreshCategoryOptions(); try{ render(); }catch(e){}
     }
+    const np=d.exists?d.get('notifPrefs'):null;
+    if(np && typeof np==='object'){ notifPrefs=Object.assign(notifPrefs, np); try{ localStorage.setItem('hoardrNotifPrefs',JSON.stringify(notifPrefs)); }catch(e){} }
   }catch(e){ console.warn('Currency load failed:',e); }
   applyCurrencyLabels();
   try{ render(); }catch(e){}
+}
+// ── Notifications (opt-in, prefs, in-app milestones; local now, FCM remote later) ──
+let notifPrefs = { enabled:false, milestones:true, monthly:true, movers:true, reminders:true };
+(function(){ try{ const s=localStorage.getItem('hoardrNotifPrefs'); if(s) notifPrefs=Object.assign(notifPrefs, JSON.parse(s)); }catch(e){} })();
+function _saveNotifPrefs(){
+  try{ localStorage.setItem('hoardrNotifPrefs', JSON.stringify(notifPrefs)); }catch(e){}
+  if(firebaseMode && currentUser){ firestoreDb.doc(`${userPath()}/settings/prefs`).set({notifPrefs},{merge:true}).catch(e=>console.warn('notifPrefs save failed:',e)); }
+}
+function _notifPermission(){ try{ return (typeof Notification!=='undefined') ? Notification.permission : 'unsupported'; }catch(e){ return 'unsupported'; } }
+async function _notify(title, body, data){
+  try{
+    if(!notifPrefs.enabled) return;
+    if(typeof Notification==='undefined' || Notification.permission!=='granted') return;
+    const opts={ body:body||'', icon:'icon-192.png', badge:'icon-192.png', data:data||{} };
+    if(navigator.serviceWorker && navigator.serviceWorker.ready){ const reg=await navigator.serviceWorker.ready; reg.showNotification(title, opts); }
+    else { new Notification(title, opts); }
+  }catch(e){ console.warn('notify failed:',e); }
+}
+async function enableNotifications(){
+  if(typeof Notification==='undefined'){ showToast('This browser doesn\'t support notifications','⚠️'); return; }
+  let perm=Notification.permission;
+  if(perm==='default'){ try{ perm=await Notification.requestPermission(); }catch(e){} }
+  if(perm==='granted'){
+    notifPrefs.enabled=true; _saveNotifPrefs();
+    _notify('Notifications on 🎉','You\'ll get milestone alerts and a monthly value report for your collection.');
+    _renderNotifPrefsUI(); showToast('Notifications enabled','🔔');
+  } else if(perm==='denied'){
+    showToast('Notifications are blocked — allow them in your browser\'s site settings','🔕'); _renderNotifPrefsUI();
+  } else { _renderNotifPrefsUI(); }
+}
+function disableNotifications(){ notifPrefs.enabled=false; _saveNotifPrefs(); _renderNotifPrefsUI(); showToast('Notifications paused','🔕'); }
+function setNotifPref(key, val){ notifPrefs[key]=!!val; _saveNotifPrefs(); }
+function _renderNotifPrefsUI(){
+  const box=document.getElementById('pfNotif'); if(!box) return;
+  const perm=_notifPermission();
+  if(perm==='unsupported'){ box.innerHTML='<p style="font-size:12px;color:var(--text3)">Notifications aren\'t supported in this browser.</p>'; return; }
+  const on = notifPrefs.enabled && perm==='granted';
+  let html='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">'
+    +'<span style="font-size:13px;color:var(--text2)">'+(on?'🔔 Notifications are on':'🔕 Notifications are off')+'</span>'
+    +(on?'<button class="btn btn-outline btn-sm" onclick="disableNotifications()">Turn off</button>':'<button class="btn btn-gold btn-sm" onclick="enableNotifications()">Enable</button>')
+    +'</div>';
+  if(perm==='denied'){ html+='<p style="font-size:11px;color:var(--text3);margin:0 0 8px">Blocked in your browser — allow notifications for this site in your browser settings, then reload.</p>'; }
+  if(on){
+    const rows=[['milestones','🎉 Milestones','Collection value & count milestones'],['monthly','📈 Monthly value report','A monthly summary of your collection\'s value'],['movers','↕ Big value movers','When an item\'s estimate changes a lot'],['reminders','🛡 Reminders','Insurance schedule & backup reminders']];
+    html+='<div style="border-top:1px solid var(--border);padding-top:8px">'+rows.map(function(r){ return '<label style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;cursor:pointer"><input type="checkbox" '+(notifPrefs[r[0]]?'checked':'')+' onchange="setNotifPref(\''+r[0]+'\',this.checked)" style="width:auto;margin-top:2px"><span><span style="font-size:12px;color:var(--text2)">'+r[1]+'</span><br><span style="font-size:11px;color:var(--text3)">'+r[2]+'</span></span></label>'; }).join('')+'</div>';
+    html+='<p style="font-size:10px;color:var(--text3);margin:8px 0 0">Milestone alerts work now. The monthly report and alerts that reach you when the app is closed switch on once remote push is configured.</p>';
+  }
+  box.innerHTML=html;
+}
+// In-app milestone celebrations (fire on item save; silently seed existing crossings on first run)
+const _MILE_COUNT=[10,25,50,100,250,500,1000,2500,5000];
+const _MILE_VALUE=[1000,5000,10000,25000,50000,100000,250000,500000];
+function _checkMilestones(){
+  try{
+    const firstRun = (localStorage.getItem('hoardrMilestones')===null);
+    let seen; try{ seen=new Set(JSON.parse(localStorage.getItem('hoardrMilestones')||'[]')); }catch(e){ seen=new Set(); }
+    const count=db.items.length;
+    const value=db.items.reduce((a,i)=>a+(parseFloat(i.value)||0),0);
+    const hits=[];
+    _MILE_COUNT.forEach(t=>{ if(count>=t){ const k='count:'+t; if(!seen.has(k)){ seen.add(k); hits.push({type:'count',t:t}); } } });
+    _MILE_VALUE.forEach(t=>{ if(value>=t){ const k='value:'+t; if(!seen.has(k)){ seen.add(k); hits.push({type:'value',t:t}); } } });
+    try{ localStorage.setItem('hoardrMilestones', JSON.stringify([...seen])); }catch(e){}
+    if(firstRun) return; // seeded existing crossings silently — only future ones celebrate
+    if(hits.length){
+      const hit = hits.find(h=>h.type==='value') || hits[0];
+      const toast = hit.type==='count' ? ('🎉 '+hit.t+' items catalogued!') : ('🎉 Your collection just passed '+fmtMoney(hit.t)+'!');
+      showToast(toast,'🎉');
+      if(notifPrefs.enabled && notifPrefs.milestones!==false){ _notify('Hoardr milestone', hit.type==='count' ? (hit.t+' items catalogued — nice collection!') : ('Your collection just passed '+fmtMoney(hit.t)+'!')); }
+    }
+  }catch(e){ console.warn('milestone check failed:',e); }
 }
 function maxPhotos(){ return isPro() ? PRO_MAX_PHOTOS : FREE_MAX_PHOTOS; }
 let editPhotoData = [];   // { url: <original photo value>, isNew: bool, file?: File }
@@ -2965,6 +3040,7 @@ async function saveItem() {
     }
     closePanel('itemOverlay');
     showToast(id ? 'Item updated ☁' : 'Item added ☁','✓');
+    _checkMilestones();
   } catch(e) {
     showToast('Save failed: '+e.message,'⚠️');
   } finally {
@@ -3652,6 +3728,7 @@ function openProfile(){
   const _v = document.getElementById('pfVersion');
   if (_v) _v.innerHTML = 'Hoardr v' + APP_VERSION + ' · ' + APP_VERSION_DATE
     + ' · <a href="#" onclick="closeModal(\'profileModal\');openWhatsNew();return false" style="color:var(--gold2)">What&rsquo;s new</a>';
+  _renderNotifPrefsUI();
   openModal('profileModal');
 }
 async function saveProfile(){
@@ -4813,7 +4890,72 @@ function getCollectionSummary() {
   return summary;
 }
 
-function showCollectionSummary() {
+function _monthKey(d){ d=d||new Date(); return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0'); }
+async function _writeMonthlySnapshot(){
+  if(!(firebaseMode && currentUser)) return;
+  try{
+    const tv=db.items.reduce((a,i)=>a+(parseFloat(i.value)||0),0);
+    const tc=db.items.reduce((a,i)=>{ const c=(i.catFieldVals&&i.catFieldVals.dc_total_cost_aud)?parseFloat(i.catFieldVals.dc_total_cost_aud):parseFloat(i.purchasePrice||0); return a+(c||0); },0);
+    const km=_monthKey();
+    await firestoreDb.doc(`${userPath()}/snapshots/${km}`).set({ month:km, totalValue:Math.round(tv*100)/100, totalCost:Math.round(tc*100)/100, itemCount:db.items.length, currency:(typeof curCode==='function'?curCode():'AUD'), at:new Date().toISOString() },{merge:true});
+  }catch(e){ console.warn('snapshot write failed (non-fatal):', e); }
+}
+async function _loadSnapshots(){
+  if(!(firebaseMode && currentUser)) return [];
+  try{
+    const s=await firestoreDb.collection(`${userPath()}/snapshots`).get();
+    const arr=[]; s.forEach(d=>{ const x=d.data(); if(x&&x.month&&x.totalValue!=null) arr.push(x); });
+    arr.sort((a,b)=>a.month<b.month?-1:1);
+    return arr;
+  }catch(e){ console.warn('snapshot load failed:', e); return []; }
+}
+function _snapSparkline(snaps){
+  const pts=(snaps||[]).filter(s=>s&&s.totalValue!=null&&!isNaN(s.totalValue));
+  const n=pts.length; if(n<2) return '';
+  const W=300,H=70,pad=8;
+  const vals=pts.map(s=>Number(s.totalValue));
+  let lo=Math.min.apply(null,vals), hi=Math.max.apply(null,vals);
+  if(hi===lo){ hi=lo+1; lo=Math.max(0,lo-1); }
+  const x=i=>pad+(W-2*pad)*(i/(n-1));
+  const y=v=>pad+(H-2*pad)*(1-(v-lo)/(hi-lo));
+  const line=vals.map((v,i)=>(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)).join(' ');
+  const area=line+' L'+x(n-1).toFixed(1)+' '+(H-pad)+' L'+x(0).toFixed(1)+' '+(H-pad)+' Z';
+  const dots=pts.map((s,i)=>'<circle cx="'+x(i).toFixed(1)+'" cy="'+y(vals[i]).toFixed(1)+'" r="'+(i===n-1?3.2:2)+'" fill="var(--gold2)"><title>'+escH(fmtMoney(s.totalValue)+' · '+s.month)+'</title></circle>').join('');
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;margin-top:8px">'
+    +'<path d="'+area+'" fill="rgba(201,168,76,.12)" stroke="none"/>'
+    +'<path d="'+line+'" fill="none" stroke="var(--gold2)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+    +dots+'</svg>'
+    +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text3);margin-top:2px"><span>'+escH(pts[0].month)+'</span><span>'+escH(pts[n-1].month)+'</span></div>';
+}
+function _catValueBars(){
+  const m={}; db.items.forEach(i=>{ const v=parseFloat(i.value)||0; if(v>0){ const c=i.category||'Uncategorised'; m[c]=(m[c]||0)+v; } });
+  const rows=Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  if(!rows.length) return '';
+  const max=rows[0][1]||1;
+  return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Value by category</div>'
+    +rows.map(function(r){ var c=r[0],v=r[1]; return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="font-size:15px;width:20px;text-align:center">'+(typeof catEmoji==='function'?catEmoji(c):'📦')+'</span><span style="flex:1;font-size:12px;color:var(--text2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escH(c)+'</span><div style="flex:2;background:var(--surface);border-radius:4px;height:8px;overflow:hidden"><div style="height:100%;width:'+Math.max(3,(v/max*100)).toFixed(0)+'%;background:var(--gold2)"></div></div><span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--green2);min-width:60px;text-align:right">'+escH(fmtMoney(v))+'</span></div>'; }).join('')
+    +'</div>';
+}
+function _topMovers(){
+  const movers=[];
+  db.items.forEach(function(i){ const h=(i.valueHistory||[]).filter(e=>e&&e.typical!=null); if(h.length>=2){ const d=Number(h[h.length-1].typical)-Number(h[0].typical); if(d) movers.push({name:i.name||'(unnamed)', d:d}); } });
+  if(!movers.length) return '';
+  movers.sort((a,b)=>Math.abs(b.d)-Math.abs(a.d));
+  return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Biggest movers (AI estimates)</div>'
+    +movers.slice(0,4).map(function(r){ var up=r.d>=0; return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="flex:1;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escH(r.name)+'</span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:'+(up?'#6cc47a':'#c96a5a')+'">'+(up?'▲':'▼')+' '+escH(fmtMoney(Math.abs(r.d)))+'</span></div>'; }).join('')
+    +'</div>';
+}
+function _topItems(){
+  const rows=db.items.map(i=>({name:i.name||'(unnamed)', v:parseFloat(i.value)||0, cat:i.category})).filter(r=>r.v>0).sort((a,b)=>b.v-a.v).slice(0,5);
+  if(!rows.length) return '';
+  return '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">'
+    +'<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Most valuable</div>'
+    +rows.map(function(r,idx){ return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--text3);width:16px">'+(idx+1)+'</span><span style="font-size:15px;width:20px;text-align:center">'+(typeof catEmoji==='function'?catEmoji(r.cat):'📦')+'</span><span style="flex:1;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escH(r.name)+'</span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--green2)">'+escH(fmtMoney(r.v))+'</span></div>'; }).join('')
+    +'</div>';
+}
+async function showCollectionSummary() {
   const summary = getCollectionSummary();
   const totalItems = db.items.length;
   const totalPieces = db.items.reduce((a,i)=>a+qtyOf(i),0);
@@ -4822,16 +4964,34 @@ function showCollectionSummary() {
     const cost = i.catFieldVals && i.catFieldVals.dc_total_cost_aud ? parseFloat(i.catFieldVals.dc_total_cost_aud) : parseFloat(i.purchasePrice || 0);
     return a + cost;
   }, 0);
+  const gain = grandValue - grandCost;
+  const gainPct = grandCost>0 ? (gain/grandCost*100) : 0;
+  const up = gain>=0;
+
+  document.getElementById('summaryPanelBody').innerHTML = '<div style="padding:36px;text-align:center;color:var(--text3)">Loading dashboard…</div>';
+  openPanel('summaryOverlay');
+  await _writeMonthlySnapshot();
+  const snaps = await _loadSnapshots();
+  const trend = _snapSparkline(snaps);
 
   let html = `<div style="padding:4px">
-    <div style="background:linear-gradient(135deg,var(--surface2),var(--surface3));border:1px solid var(--border2);border-radius:10px;padding:16px;margin-bottom:16px">
-      <div style="font-family:'Playfair Display',serif;font-size:18px;color:var(--gold2);font-weight:700;margin-bottom:12px">📊 Grand Total</div>
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center">
-        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--gold2);font-weight:700">${totalItems}</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Total Items${totalPieces>totalItems?` <span style="color:var(--gold2)">· ${totalPieces} pieces</span>`:''}</div></div>
-        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--green2);font-weight:700">${fmtMoney(grandValue)}</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Est. Value</div></div>
-        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:22px;color:var(--rust2);font-weight:700">${fmtMoney(grandCost)}</div><div style="font-size:11px;color:var(--text3);margin-top:3px">Total Cost AUD</div></div>
+    <div style="background:linear-gradient(135deg,var(--surface2),var(--surface3));border:1px solid var(--border2);border-radius:10px;padding:16px;margin-bottom:14px">
+      <div style="text-align:center;margin-bottom:10px">
+        <div style="font-size:12px;color:var(--text3)">Total estimated value</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:30px;color:var(--gold2);font-weight:700">${fmtMoney(grandValue)}</div>
+        ${grandCost>0?`<div style="font-size:12px;margin-top:3px;color:${up?'#6cc47a':'#c96a5a'}">${up?'▲':'▼'} ${fmtMoney(Math.abs(gain))} (${up?'+':'−'}${Math.abs(gainPct).toFixed(0)}%) vs cost</div>`:''}
       </div>
-    </div>`;
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:center;border-top:1px solid var(--border);padding-top:10px">
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:18px;color:var(--text)">${totalItems}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">Items${totalPieces>totalItems?` · ${totalPieces} pcs`:''}</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:18px;color:var(--text)">${db.collections.length}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">Collections</div></div>
+        <div><div style="font-family:'IBM Plex Mono',monospace;font-size:18px;color:var(--rust2)">${fmtMoney(grandCost)}</div><div style="font-size:10px;color:var(--text3);margin-top:2px">Total cost</div></div>
+      </div>
+      ${trend?`<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:10px"><div style="font-size:11px;color:var(--text3)">Value over time</div>${trend}</div>`:`<div style="border-top:1px solid var(--border);padding-top:10px;margin-top:10px;font-size:11px;color:var(--text3);text-align:center">📈 Your value-over-time chart starts building this month — reopen next month to see the trend.</div>`}
+    </div>
+    ${_catValueBars()}
+    ${_topMovers()}
+    ${_topItems()}
+    <div style="font-size:12px;color:var(--text3);margin:14px 4px 8px">By collection</div>`;
 
   Object.entries(summary).forEach(([colId, s]) => {
     if (colId === '__ungrouped__' && s.itemCount === 0) return;
@@ -4870,7 +5030,6 @@ function showCollectionSummary() {
   html += `</div>`;
 
   document.getElementById('summaryPanelBody').innerHTML = html;
-  openPanel('summaryOverlay');
 }
 
 // ═══════════════════════════════════════════════════════════

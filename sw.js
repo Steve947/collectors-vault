@@ -1,5 +1,5 @@
 // Hoardr Service Worker — v1.0
-const CACHE_NAME = 'hoardr-v3';
+const CACHE_NAME = 'hoardr-v4';
 // RELATIVE paths — the site is served from the root on hoardrapp.com but from
 // /collectors-vault/ on github.io. Absolute /collectors-vault/ paths 404 on the
 // custom domain, which makes cache.addAll() reject and the worker never install.
@@ -67,5 +67,17 @@ self.addEventListener('fetch', event => {
           }
         });
       })
+  );
+});
+
+// Notification click — focus the app or open it, honouring an optional deep-link URL
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || './';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    })
   );
 });
