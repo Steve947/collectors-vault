@@ -33,6 +33,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-functions-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
 
 <style>
 :root {
@@ -1894,6 +1895,7 @@ async function loadCurrencyPref(){
     }
     const np=d.exists?d.get('notifPrefs'):null;
     if(np && typeof np==='object'){ notifPrefs=Object.assign(notifPrefs, np); try{ localStorage.setItem('hoardrNotifPrefs',JSON.stringify(notifPrefs)); }catch(e){} }
+    if(notifPrefs.enabled && _notifPermission()==='granted'){ _registerPush(); }
   }catch(e){ console.warn('Currency load failed:',e); }
   applyCurrencyLabels();
   try{ render(); }catch(e){}
@@ -1920,7 +1922,7 @@ async function enableNotifications(){
   let perm=Notification.permission;
   if(perm==='default'){ try{ perm=await Notification.requestPermission(); }catch(e){} }
   if(perm==='granted'){
-    notifPrefs.enabled=true; _saveNotifPrefs();
+    notifPrefs.enabled=true; _saveNotifPrefs(); _registerPush();
     _notify('Notifications on 🎉','You\'ll get milestone alerts and a monthly value report for your collection.');
     _renderNotifPrefsUI(); showToast('Notifications enabled','🔔');
   } else if(perm==='denied'){
@@ -1929,6 +1931,27 @@ async function enableNotifications(){
 }
 function disableNotifications(){ notifPrefs.enabled=false; _saveNotifPrefs(); _renderNotifPrefsUI(); showToast('Notifications paused','🔕'); }
 function setNotifPref(key, val){ notifPrefs[key]=!!val; _saveNotifPrefs(); }
+// ── FCM remote push (paste the VAPID key below to switch on; empty = local/in-app only) ──
+const FCM_VAPID_KEY = 'BIUl_zIsqB8VRUHQljrk2_QvI03idyKnXRWki9VEgOmJp3s9IjfJKS3gR5pYCQmJaYjRutDOxpswR_nV2wjpb-E';   // Firebase console → Project settings → Cloud Messaging → Web Push certificates → key pair
+let msgSvc = null;
+function _fcmReady(){ return !!FCM_VAPID_KEY && typeof firebase!=='undefined' && firebase.messaging && firebaseMode && currentUser; }
+async function _registerPush(){
+  if(!_fcmReady()) return;
+  try{
+    if(!msgSvc) msgSvc = firebase.messaging();
+    const reg = await navigator.serviceWorker.register('firebase-messaging-sw.js', { scope: './firebase-cloud-messaging-push-scope' });
+    const token = await msgSvc.getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: reg });
+    if(token && firebaseMode && currentUser){
+      await firestoreDb.doc(`${userPath()}/settings/prefs`).set({ fcmTokens: firebase.firestore.FieldValue.arrayUnion(token) }, { merge:true });
+    }
+    if(!_registerPush._fg){ _registerPush._fg=true; msgSvc.onMessage(payload=>{ const n=(payload&&payload.notification)||{}; _notify(n.title||'Hoardr', n.body||'', (payload&&payload.data)||{}); }); }
+  }catch(e){ console.warn('push register failed:', e); }
+}
+async function sendTestReport(){
+  if(!fnSvc){ showToast('Reload and try again','⚠️'); return; }
+  try{ const r=await fnSvc.httpsCallable('sendTestReport')(); const sent=r&&r.data&&r.data.sent; showToast(sent? 'Test report sent — check your notifications':'No registered device yet — enable notifications, then retry','📈'); }
+  catch(e){ const c=(e&&e.code)||''; if(c.indexOf('permission-denied')>=0) showToast('Test reports are owner-only for now','🔒'); else showToast('Test failed: '+((e&&e.message)||'try again'),'⚠️'); }
+}
 function _renderNotifPrefsUI(){
   const box=document.getElementById('pfNotif'); if(!box) return;
   const perm=_notifPermission();
@@ -1942,6 +1965,7 @@ function _renderNotifPrefsUI(){
   if(on){
     const rows=[['milestones','🎉 Milestones','Collection value & count milestones'],['monthly','📈 Monthly value report','A monthly summary of your collection\'s value'],['movers','↕ Big value movers','When an item\'s estimate changes a lot'],['reminders','🛡 Reminders','Insurance schedule & backup reminders']];
     html+='<div style="border-top:1px solid var(--border);padding-top:8px">'+rows.map(function(r){ return '<label style="display:flex;align-items:flex-start;gap:8px;padding:5px 0;cursor:pointer"><input type="checkbox" '+(notifPrefs[r[0]]?'checked':'')+' onchange="setNotifPref(\''+r[0]+'\',this.checked)" style="width:auto;margin-top:2px"><span><span style="font-size:12px;color:var(--text2)">'+r[1]+'</span><br><span style="font-size:11px;color:var(--text3)">'+r[2]+'</span></span></label>'; }).join('')+'</div>';
+    if(typeof isAiAlpha==='function' && isAiAlpha()){ html+='<button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:8px" onclick="sendTestReport()">Send me a test report</button>'; }
     html+='<p style="font-size:10px;color:var(--text3);margin:8px 0 0">Milestone alerts work now. The monthly report and alerts that reach you when the app is closed switch on once remote push is configured.</p>';
   }
   box.innerHTML=html;
