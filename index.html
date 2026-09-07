@@ -266,7 +266,7 @@ textarea{resize:vertical;min-height:75px}
 /* modal */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:300;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
 .modal-overlay.open{opacity:1;pointer-events:all}
-.modal-box{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:26px;width:420px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.7);transform:scale(.95);transition:transform .2s}
+.modal-box{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:26px;width:420px;max-width:95vw;max-height:92vh;max-height:92dvh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.7);transform:scale(.95);transition:transform .2s}
 .modal-overlay.open .modal-box{transform:scale(1)}
 .modal-title{font-family:'Playfair Display',serif;font-size:19px;color:var(--gold2);font-weight:700;margin-bottom:18px}
 .tour-slide{display:none}
@@ -652,6 +652,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
   <div class="mm-sec">Account</div>
   <div class="mm-grid">
     <button class="btn btn-blue" style="justify-content:center" onclick="toggleMobileMenu();shareCollection()">📤 Share</button>
+    <button class="btn btn-outline" style="justify-content:center" onclick="toggleMobileMenu();openProfile()">👤 Profile</button>
     <button class="btn btn-outline" style="justify-content:center;grid-column:1/-1" onclick="toggleMobileMenu();signOutUser()">Sign Out</button>
   </div>
 </div>
@@ -1274,12 +1275,26 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       </div>
 
       <div class="tour-slide">
-        <div class="modal-title" style="text-align:center;display:block">Yours, safe, and free</div>
+        <div class="modal-title" style="text-align:center;display:block">Free to start</div>
         <div style="background:var(--surface2);border:1px solid var(--gold-dim,#7a5a1e);border-radius:8px;padding:12px 14px;margin-top:6px">
-          <div style="color:var(--gold2);font-weight:700;font-size:13px;margin-bottom:6px;text-align:center">Everything's included — free</div>
-          <p style="color:var(--text3);font-size:11.5px;line-height:1.6;margin:0;text-align:center">Unlimited items and collections, up to 6 photos each, Excel &amp; photo-catalogue PDF exports, insurance schedules, and cloud backup. No ads, no locked features, no catch.</p>
+          <div style="color:var(--gold2);font-weight:700;font-size:13px;margin-bottom:6px;text-align:center">Included on the free plan</div>
+          <p style="color:var(--text3);font-size:11.5px;line-height:1.6;margin:0;text-align:center">Unlimited items and collections, up to 6 photos each, Excel and photo catalogue PDF exports, insurance schedules, and cloud backup. No ads.</p>
         </div>
         <p style="color:var(--text3);font-size:12px;text-align:center;margin:14px 4px 0">Reopen this guide anytime from the <b>?</b> button up top.</p>
+      </div>
+
+      <div class="tour-slide">
+        <div class="modal-title" style="text-align:center;display:block">Go further with Hoardr Pro</div>
+        <p style="color:var(--text3);font-size:12px;text-align:center;margin:6px 4px 12px">Let AI do the heavy lifting and watch your collection's value change over time.</p>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div class="tour-card">📸 &nbsp;<b style="color:var(--gold2)">AI photo cataloguing</b> <span style="color:var(--text3);font-size:12px">snap a photo and the details fill themselves in.</span></div>
+          <div class="tour-card">💲 &nbsp;<b style="color:var(--gold2)">Value estimates and tracking</b> <span style="color:var(--text3);font-size:12px">real values from current and recent online sales, tracked over time.</span></div>
+          <div class="tour-card">📈 &nbsp;<b style="color:var(--gold2)">Monthly value reports</b> <span style="color:var(--text3);font-size:12px">a monthly note on what your collection is worth.</span></div>
+        </div>
+        <div style="text-align:center;margin-top:13px">
+          <button class="btn btn-gold btn-sm" onclick="_onboardStartTrial()" style="width:100%;justify-content:center">Start 7 day free trial</button>
+          <p style="font-size:10.5px;color:var(--text3);margin:8px 0 0">7 days free, then A$6.99/month or A$49.99/year. Cancel anytime.</p>
+        </div>
       </div>
 
     </div>
@@ -3862,7 +3877,16 @@ function closeOnboarding(markSeen){
   if(markSeen){ try{localStorage.setItem('hoardr_onboarded','1');}catch(e){} }
   _closeLayer('onboardModal');
 }
-function maybeShowOnboarding(){ try{ if(!localStorage.getItem('hoardr_onboarded')){ showOnboarding(); localStorage.setItem('hoardr_onboarded','1'); } }catch(e){} }
+function maybeShowOnboarding(){
+  try{
+    var seen=false; try{ seen=!!localStorage.getItem('hoardr_onboarded'); }catch(e){}
+    var firstEver=false;
+    try{ var m=currentUser&&currentUser.metadata;
+      if(m&&m.creationTime&&m.lastSignInTime){ firstEver=Math.abs(new Date(m.lastSignInTime)-new Date(m.creationTime))<60000; } }catch(e){}
+    if(!seen || firstEver){ showOnboarding(); try{ localStorage.setItem('hoardr_onboarded','1'); }catch(e){} }
+  }catch(e){}
+}
+function _onboardStartTrial(){ closeOnboarding(true); openUpgrade(); }
 
 // ── Profile & account ──
 function openProfile(){
