@@ -1294,6 +1294,14 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
   </div>
 </div>
 
+<div class="modal-overlay" id="upgradeModal" onclick="closeIfBg(event,'upgradeModal')">
+  <div class="modal-box" onclick="event.stopPropagation()" style="max-width:420px">
+    <div class="modal-title" style="text-align:center;display:block">✨ Hoardr Pro</div>
+    <p style="text-align:center;font-size:12px;color:var(--text3);margin:-6px 0 14px">Unlock the AI tools and value tracking</p>
+    <div id="upgradeBody"></div>
+    <button class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-top:10px" onclick="closeModal('upgradeModal')">Not now</button>
+  </div>
+</div>
 <div class="modal-overlay" id="profileModal" onclick="closeIfBg(event,'profileModal')">
   <div class="modal-box" onclick="event.stopPropagation()" style="max-width:440px">
     <div class="modal-title">My Profile</div>
@@ -1303,6 +1311,9 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <div id="pfVerifyRow" style="font-size:12px;margin:-6px 0 14px"></div>
     <button class="btn btn-gold" style="width:100%;justify-content:center;margin-bottom:10px" onclick="saveProfile()">Save changes</button>
     <div id="pfPasswordRow"><button class="btn btn-outline" style="width:100%;justify-content:center" onclick="changePasswordEmail()">🔑 Send password reset email</button></div>
+    <hr class="section-divider">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">✨ Hoardr Pro</div>
+    <div id="pfPro"></div>
     <hr class="section-divider">
     <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">🔔 Notifications</div>
     <div id="pfNotif"></div>
@@ -1840,6 +1851,20 @@ const HARD_MAX_ITEMS = 5000, HARD_MAX_COLLECTIONS = 100;
 // Ko-fi link, not an in-app paywall.
 const FREE_FOR_ALL = true;
 function isPro(){ return FREE_FOR_ALL || isProUser; }
+// Entitlement: a real paid subscription sets users/{uid}.isPro=true via the billing
+// webhook (Stripe/PayPal → Cloud Function, Admin SDK). The client reads it here and ORs
+// it with the owner allowlist. Guarded: before the read rule is deployed this just no-ops
+// and we keep the PRO_EMAILS fallback. Single source of truth — aiAssist reads the same field.
+async function _refreshEntitlement(){
+  try{
+    if(!(firebaseMode && currentUser)) return;
+    const d = await firestoreDb.doc(`users/${currentUser.uid}`).get();
+    const pro = d.exists && d.get('isPro')===true;
+    const was = isProUser;
+    isProUser = pro || PRO_EMAILS.includes((currentUser.email||'').toLowerCase());
+    if(isProUser!==was){ try{ updateAiUi(); }catch(e){} try{ render(); }catch(e){} }
+  }catch(e){ /* read rule not deployed yet, or offline — keep the allowlist fallback */ }
+}
 
 // ── Currency preference (stored per user in Firestore + mirrored to localStorage) ──
 const CURRENCIES=[
@@ -1908,6 +1933,73 @@ function _saveNotifPrefs(){
   if(firebaseMode && currentUser){ firestoreDb.doc(`${userPath()}/settings/prefs`).set({notifPrefs},{merge:true}).catch(e=>console.warn('notifPrefs save failed:',e)); }
 }
 function _notifPermission(){ try{ return (typeof Notification!=='undefined') ? Notification.permission : 'unsupported'; }catch(e){ return 'unsupported'; } }
+function _isInstalledPWA(){ try{ return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone===true; }catch(e){ return false; } }
+// ── Billing / Hoardr Pro (Stripe hosted Checkout + portal) ──
+let _upgPlan='annual';
+function openUpgrade(){ _upgPlan='annual'; _renderUpgrade(); openModal('upgradeModal'); }
+function setUpgPlan(p){ _upgPlan=p; _renderUpgrade(); }
+function _renderUpgrade(){
+  const box=document.getElementById('upgradeBody'); if(!box) return;
+  const annual=_upgPlan==='annual';
+  const price = annual ? 'A$49.99<span style="font-size:13px;color:var(--text3)">/year</span>' : 'A$6.99<span style="font-size:13px;color:var(--text3)">/month</span>';
+  const sub = annual ? 'Just ~A$4.17/month, billed yearly — around 40% off monthly.' : 'Billed monthly. Switch to yearly anytime to save.';
+  const feats=[
+    ['📸','AI photo auto-cataloguing','Snap a photo — AI fills in the details'],
+    ['📥','AI Smart Import','Bring a whole spreadsheet or list in, mapped automatically'],
+    ['💲','AI value estimates + tracking','Grounded eBay-sold estimates, tracked over time'],
+    ['📈','Monthly value reports','A push telling you what your collection is worth'],
+    ['⚡','50 AI actions / month','Plenty for regular cataloguing'],
+  ];
+  box.innerHTML =
+    '<div style="display:flex;gap:8px;margin-bottom:14px">'
+     +'<button class="btn '+(annual?'btn-gold':'btn-outline')+' btn-sm" style="flex:1;justify-content:center" onclick="setUpgPlan(\'annual\')">Yearly · best value</button>'
+     +'<button class="btn '+(!annual?'btn-gold':'btn-outline')+' btn-sm" style="flex:1;justify-content:center" onclick="setUpgPlan(\'monthly\')">Monthly</button>'
+    +'</div>'
+    +'<div style="text-align:center;margin-bottom:3px"><span style="font-size:30px;font-weight:700;color:var(--gold2)">'+price+'</span></div>'
+    +'<div style="text-align:center;font-size:12px;color:var(--text3);margin-bottom:14px">'+sub+'</div>'
+    +'<div style="display:flex;flex-direction:column;gap:9px;margin-bottom:14px">'
+     +feats.map(function(f){ return '<div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:16px">'+f[0]+'</span><span style="flex:1"><span style="font-size:13px;color:var(--text)">'+f[1]+'</span><br><span style="font-size:11px;color:var(--text3)">'+f[2]+'</span></span></div>'; }).join('')
+    +'</div>'
+    +'<button class="btn btn-gold" style="width:100%;justify-content:center" onclick="startCheckout(\''+_upgPlan+'\')">Start 7-day free trial</button>'
+    +'<p style="font-size:10px;color:var(--text3);text-align:center;margin:10px 0 0">7 days free, then '+(annual?'A$49.99/year':'A$6.99/month')+'. Cancel anytime in your account. Billed in AUD via Stripe.</p>';
+}
+async function startCheckout(plan){
+  if(!fnSvc){ showToast('Reload and try again','⚠️'); return; }
+  showToast('Opening secure checkout…','💳');
+  try{
+    const r=await fnSvc.httpsCallable('createCheckoutSession')({plan:plan});
+    const url=r&&r.data&&r.data.url;
+    if(url){ window.location.href=url; } else { showToast('Could not start checkout','⚠️'); }
+  }catch(e){ const c=(e&&e.code)||''; if(c.indexOf('unauthenticated')>=0) showToast('Sign in first','🔒'); else showToast('Checkout failed: '+((e&&e.message)||'try again'),'⚠️'); }
+}
+async function openBillingPortal(){
+  if(!fnSvc){ showToast('Reload and try again','⚠️'); return; }
+  showToast('Opening your billing portal…','💳');
+  try{
+    const r=await fnSvc.httpsCallable('createPortalLink')();
+    const url=r&&r.data&&r.data.url;
+    if(url){ window.location.href=url; } else { showToast('Could not open the billing portal','⚠️'); }
+  }catch(e){ const c=(e&&e.code)||''; if(c.indexOf('failed-precondition')>=0) showToast('No subscription to manage yet','ℹ️'); else showToast('Couldn\'t open billing: '+((e&&e.message)||'try again'),'⚠️'); }
+}
+function _renderProUI(){
+  const box=document.getElementById('pfPro'); if(!box) return;
+  if(isProUser){
+    box.innerHTML='<div style="font-size:13px;color:var(--gold2);margin-bottom:8px">✓ You\'re on Hoardr Pro</div>'
+      +'<button class="btn btn-outline" style="width:100%;justify-content:center" onclick="openBillingPortal()">Manage subscription</button>';
+  } else {
+    box.innerHTML='<p style="font-size:12px;color:var(--text3);margin-bottom:8px">Unlock AI cataloguing, value estimates & tracking, and monthly reports.</p>'
+      +'<button class="btn btn-gold" style="width:100%;justify-content:center" onclick="closeModal(\'profileModal\');openUpgrade()">Upgrade to Pro</button>';
+  }
+}
+function _handleBillingReturn(){
+  try{
+    const u=new URL(window.location.href); const b=u.searchParams.get('billing');
+    if(!b) return;
+    if(b==='success'){ showToast('Welcome to Hoardr Pro! 🎉 Your 7-day trial has started.','✨'); setTimeout(_refreshEntitlement,3000); setTimeout(_refreshEntitlement,9000); }
+    else if(b==='cancel'){ showToast('Checkout cancelled — no charge made','👍'); }
+    u.searchParams.delete('billing'); window.history.replaceState({}, document.title, u.pathname+u.search+u.hash);
+  }catch(e){}
+}
 async function _notify(title, body, data){
   try{
     if(!notifPrefs.enabled) return;
@@ -1933,6 +2025,8 @@ function disableNotifications(){ notifPrefs.enabled=false; _saveNotifPrefs(); _r
 function setNotifPref(key, val){ notifPrefs[key]=!!val; _saveNotifPrefs(); }
 // ── FCM remote push (paste the VAPID key below to switch on; empty = local/in-app only) ──
 const FCM_VAPID_KEY = 'BIUl_zIsqB8VRUHQljrk2_QvI03idyKnXRWki9VEgOmJp3s9IjfJKS3gR5pYCQmJaYjRutDOxpswR_nV2wjpb-E';   // Firebase console → Project settings → Cloud Messaging → Web Push certificates → key pair
+// Stripe publishable key (PUBLIC — safe in client). TEST mode; swap to pk_live_ at launch.
+const STRIPE_PUBLISHABLE_KEY = 'pk_test_51UCrfL3SowKeLXaYURWsNoChOKtFb3b5zXrzvbskxcpOEF5y94fCxJNsaUsEi04U8ndTuXztGColgtCsxhmAThfm00x23u8hNN';
 let msgSvc = null;
 function _fcmReady(){ return !!FCM_VAPID_KEY && typeof firebase!=='undefined' && firebase.messaging && firebaseMode && currentUser; }
 async function _registerPush(){
@@ -1957,7 +2051,8 @@ function _renderNotifPrefsUI(){
   const perm=_notifPermission();
   if(perm==='unsupported'){ box.innerHTML='<p style="font-size:12px;color:var(--text3)">Notifications aren\'t supported in this browser.</p>'; return; }
   const on = notifPrefs.enabled && perm==='granted';
-  let html='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">'
+  let html = (_isInstalledPWA()?'':'<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:8px;font-size:11px;color:var(--text3);line-height:1.5">📲 <b style="color:var(--text2)">Tip:</b> add Hoardr to your home screen (your browser menu → “Add to home screen” / “Install app”) for reliable notifications — especially on phones.</div>')
+    + '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">'
     +'<span style="font-size:13px;color:var(--text2)">'+(on?'🔔 Notifications are on':'🔕 Notifications are off')+'</span>'
     +(on?'<button class="btn btn-outline btn-sm" onclick="disableNotifications()">Turn off</button>':'<button class="btn btn-gold btn-sm" onclick="enableNotifications()">Enable</button>')
     +'</div>';
@@ -2386,12 +2481,14 @@ function setupAuthListener() {
     if (user) {
       currentUser = user;
       isProUser = PRO_EMAILS.includes((user.email||'').toLowerCase());
+      _refreshEntitlement();   // also honour a billing-set isPro flag on the account doc (guarded)
       updateAiUi();
       document.getElementById('userName').textContent = user.displayName || user.email.split('@')[0];
       document.title = 'Hoardr';
       document.getElementById('authScreen').style.display = 'none';
       document.getElementById('mainApp').style.display = 'block';
       startRealtimeSync();
+      _handleBillingReturn();
       setTimeout(maybeShowOnboarding, 600);
     } else {
       currentUser = null;
@@ -3752,6 +3849,7 @@ function openProfile(){
   const _v = document.getElementById('pfVersion');
   if (_v) _v.innerHTML = 'Hoardr v' + APP_VERSION + ' · ' + APP_VERSION_DATE
     + ' · <a href="#" onclick="closeModal(\'profileModal\');openWhatsNew();return false" style="color:var(--gold2)">What&rsquo;s new</a>';
+  _renderProUI();
   _renderNotifPrefsUI();
   openModal('profileModal');
 }
