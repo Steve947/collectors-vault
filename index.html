@@ -1376,9 +1376,11 @@ const TEST_PRO_EMAILS = [
 ];
 const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCase());
 
-// ── AI features (limited alpha): owners only, ignores FREE_FOR_ALL, until billing lands ──
+// ── AI features: available to Pro subscribers and owners. isProUser reflects
+//    billing (users/{uid}.isPro, set by the Stripe webhook) plus the owner
+//    allowlist; the server enforces the same rule via resolveIsPro. ──
 const AI_ALPHA_EMAILS = OWNER_PRO_EMAILS.map(e => e.toLowerCase());
-function isAiAlpha(){ return !!currentUser && AI_ALPHA_EMAILS.includes((currentUser.email||'').toLowerCase()); }
+function isAiAlpha(){ return !!currentUser && isProUser; }
 function updateAiUi(){ const on=isAiAlpha(); ['aiTidyBtn','aiFillBtn','aiValueBtn','aiValueViewBtn','smartImportLabelD','importSecM'].forEach(id=>{const b=document.getElementById(id); if(b) b.style.display = on ? '' : 'none';}); }
 let _aiTidyPending = '';
 async function aiTidyNotes(){
