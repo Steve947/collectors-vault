@@ -1944,7 +1944,7 @@ async function _registerPush(){
     if(token && firebaseMode && currentUser){
       await firestoreDb.doc(`${userPath()}/settings/prefs`).set({ fcmTokens: firebase.firestore.FieldValue.arrayUnion(token) }, { merge:true });
     }
-    if(!_registerPush._fg){ _registerPush._fg=true; msgSvc.onMessage(payload=>{ const n=(payload&&payload.notification)||{}; _notify(n.title||'Hoardr', n.body||'', (payload&&payload.data)||{}); }); }
+    if(!_registerPush._fg){ _registerPush._fg=true; msgSvc.onMessage(payload=>{ const n=(payload&&payload.notification)||{}; try{ showToast('🔔 '+(n.body||n.title||'Notification received'),'📈'); }catch(e){} _notify(n.title||'Hoardr', n.body||'', (payload&&payload.data)||{}); }); }
   }catch(e){ console.warn('push register failed:', e); }
 }
 async function sendTestReport(){
