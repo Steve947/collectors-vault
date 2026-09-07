@@ -466,6 +466,7 @@ textarea{resize:vertical;min-height:75px}
 
 /* Mobile search bar — hide on desktop */
 @media(min-width:701px){#mobileSearchBar{display:none!important}}
+@media(min-width:701px){#toolbarProfileBtn{display:none!important}}
 
 /* Small phones */
 @media(max-width:380px){
@@ -628,14 +629,14 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
 <div id="mobileMoreMenu" style="display:none;position:fixed;bottom:64px;right:0;left:0;z-index:130;background:var(--surface);border-top:1px solid var(--border2);padding:12px;box-shadow:0 -4px 20px rgba(0,0,0,.5);max-height:72vh;overflow-y:auto">
   <div class="mm-sec">Create</div>
   <div class="mm-grid">
-    <button class="btn btn-outline" onclick="openCollectionModal();toggleMobileMenu()">＋ Collection</button>
-    <button class="btn btn-outline" onclick="openGroupModal();toggleMobileMenu()">＋ Group</button>
-    <button class="btn btn-outline" style="grid-column:1/-1" onclick="showCollectionSummary();toggleMobileMenu()">📊 Dashboard</button>
+    <button class="btn btn-outline" onclick="toggleMobileMenu();openCollectionModal()">＋ Collection</button>
+    <button class="btn btn-outline" onclick="toggleMobileMenu();openGroupModal()">＋ Group</button>
+    <button class="btn btn-outline" style="grid-column:1/-1" onclick="toggleMobileMenu();showCollectionSummary()">📊 Dashboard</button>
   </div>
   <div class="mm-sec">Export</div>
   <div class="mm-grid">
-    <button class="btn btn-outline" onclick="exportExcel();toggleMobileMenu()">📊 Excel</button>
-    <button class="btn btn-outline" onclick="openPdfChooser();toggleMobileMenu()">📄 PDF</button>
+    <button class="btn btn-outline" onclick="toggleMobileMenu();exportExcel()">📊 Excel</button>
+    <button class="btn btn-outline" onclick="toggleMobileMenu();openPdfChooser()">📄 PDF</button>
   </div>
   <div id="importSecM" style="display:none">
     <div class="mm-sec">Import</div>
@@ -645,14 +646,13 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
   </div>
   <div class="mm-sec">Backup</div>
   <div class="mm-grid">
-    <button class="btn btn-green" style="justify-content:center" onclick="saveLocally();toggleMobileMenu()">💾 Save to device</button>
-    <label class="btn btn-green" style="cursor:pointer;justify-content:center">📁 Load backup<input type="file" accept=".json" style="display:none" onchange="loadFromBackup(event);toggleMobileMenu()"></label>
+    <button class="btn btn-green" style="justify-content:center" onclick="toggleMobileMenu();saveLocally()">💾 Save to device</button>
+    <label class="btn btn-green" style="cursor:pointer;justify-content:center">📁 Load backup<input type="file" accept=".json" style="display:none" onchange="toggleMobileMenu();loadFromBackup(event)"></label>
   </div>
   <div class="mm-sec">Account</div>
   <div class="mm-grid">
-    <button class="btn btn-blue" style="justify-content:center" onclick="shareCollection();toggleMobileMenu()">📤 Share</button>
-    <button class="btn btn-outline" style="justify-content:center" onclick="openProfile();toggleMobileMenu()">👤 Profile</button>
-    <button class="btn btn-outline" style="justify-content:center;grid-column:1/-1" onclick="signOutUser();toggleMobileMenu()">Sign Out</button>
+    <button class="btn btn-blue" style="justify-content:center" onclick="toggleMobileMenu();shareCollection()">📤 Share</button>
+    <button class="btn btn-outline" style="justify-content:center;grid-column:1/-1" onclick="toggleMobileMenu();signOutUser()">Sign Out</button>
   </div>
 </div>
 
@@ -721,6 +721,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <span id="itemCount" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3)">0 items</span>
       <div class="spacer"></div>
       <button class="btn btn-outline btn-sm" onclick="showCollectionSummary()" title="Collection value dashboard">📊 Dashboard</button>
+      <button class="btn btn-outline btn-sm" id="toolbarProfileBtn" onclick="openProfile()" title="Profile &amp; account">👤 Profile</button>
       <select id="sortSelect" onchange="setSort(this.value)" title="Sort items" class="toolbar-select">
         <option value="">Sort: Name (A–Z)</option>
         <option value="name|-1">Name (Z–A)</option>
@@ -1946,7 +1947,7 @@ function _renderUpgrade(){
   const feats=[
     ['📸','AI photo auto-cataloguing','Snap a photo — AI fills in the details'],
     ['📥','AI Smart Import','Bring a whole spreadsheet or list in, mapped automatically'],
-    ['💲','AI value estimates + tracking','Grounded eBay-sold estimates, tracked over time'],
+    ['💲','AI value estimates + tracking','Real values from current and recent online sales, tracked over time'],
     ['📈','Monthly value reports','A push telling you what your collection is worth'],
     ['⚡','50 AI actions / month','Plenty for regular cataloguing'],
   ];
@@ -1990,6 +1991,39 @@ function _renderProUI(){
     box.innerHTML='<p style="font-size:12px;color:var(--text3);margin-bottom:8px">Unlock AI cataloguing, value estimates & tracking, and monthly reports.</p>'
       +'<button class="btn btn-gold" style="width:100%;justify-content:center" onclick="closeModal(\'profileModal\');openUpgrade()">Upgrade to Pro</button>';
   }
+}
+// ── Periodic "Upgrade to Pro" nudge ─────────────────────────────────────────
+// The upgrade lives in Profile, which is easy to miss. This shows a gentle,
+// dismissible bottom banner to engaged non-subscribers so they know Pro exists.
+// Rules: signed-in non-subscriber, has catalogued a few items, onboarding done,
+// at most once per browser session, and no more than once every 5 days.
+let _upNudgeArmed=false;
+function armUpgradeNudge(){ if(_upNudgeArmed) return; _upNudgeArmed=true; setTimeout(maybeShowUpgradeNudge,6000); }
+function maybeShowUpgradeNudge(){
+  try{
+    if(isProUser || !currentUser) return;                 // subscribers/owners: never
+    if((db.items||[]).length < 3) return;                 // only nudge engaged users
+    try{ if(!localStorage.getItem('hoardr_onboarded')) return; }catch(e){}
+    try{ if(sessionStorage.getItem('hoardr_upnudge_shown')) return; }catch(e){}
+    try{ const last=parseInt(localStorage.getItem('hoardr_upnudge_last')||'0',10);
+         if(last && (Date.now()-last) < 5*864e5) return; }catch(e){}   // 5-day snooze
+    if(document.querySelector('.modal-overlay.open')){ setTimeout(maybeShowUpgradeNudge,8000); return; }
+    if(document.getElementById('upNudge')) return;
+    try{ sessionStorage.setItem('hoardr_upnudge_shown','1'); }catch(e){}
+    const b=document.createElement('div'); b.id='upNudge';
+    b.style.cssText='position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;transition:opacity .35s ease,transform .35s ease;background:var(--surface);border:1px solid var(--gold);border-radius:12px;padding:13px 16px;display:flex;align-items:center;gap:12px;z-index:500;box-shadow:0 6px 26px rgba(0,0,0,.6);max-width:360px;width:92vw';
+    b.innerHTML='<span style="font-size:22px">✨</span>'
+      +'<div style="flex:1"><div style="font-weight:600;color:var(--gold2);font-size:13px">Track what your collection is worth</div>'
+      +'<div style="font-size:11px;color:var(--text3);line-height:1.45">AI value estimates from current and recent online sales, plus monthly reports, all with Pro.</div></div>'
+      +'<button onclick="dismissUpgradeNudge();openUpgrade()" style="background:linear-gradient(135deg,var(--gold),#a87a30);color:#1a1200;border:none;border-radius:6px;padding:7px 13px;cursor:pointer;font-weight:600;font-size:12px;white-space:nowrap">See Pro</button>'
+      +'<button aria-label="Dismiss" onclick="dismissUpgradeNudge()" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:0 2px;line-height:1">✕</button>';
+    document.body.appendChild(b);
+    requestAnimationFrame(function(){ b.style.opacity='1'; b.style.transform='translateX(-50%) translateY(0)'; });
+  }catch(e){}
+}
+function dismissUpgradeNudge(){
+  try{ localStorage.setItem('hoardr_upnudge_last', String(Date.now())); }catch(e){}
+  const b=document.getElementById('upNudge'); if(b){ b.style.opacity='0'; b.style.transform='translateX(-50%) translateY(20px)'; setTimeout(function(){ b.remove(); },350); }
 }
 function _handleBillingReturn(){
   try{
@@ -2611,6 +2645,7 @@ function startRealtimeSync() {
       db.items = snap.docs.map(d => ({id:d.id, ...d.data()}));
       setSyncStatus('synced');
       render();
+      armUpgradeNudge();
       // Auto-seed train collection once on first load if not present
       if(!_trainSeeded && db.collections.length > 0){
         _trainSeeded = true;
@@ -5394,13 +5429,13 @@ document.addEventListener('click', e=>{
   const menu = document.getElementById('mobileMoreMenu');
   if(menu && menu.style.display !== 'none'){
     if(!menu.contains(e.target) && !e.target.closest('#bnavMore')){
-      menu.style.display = 'none';
+      closeMobileMenu();
     }
   }
   const amenu = document.getElementById('addMenu');
   if(amenu && amenu.style.display !== 'none'){
     if(!amenu.contains(e.target) && !e.target.closest('#bnavAdd')){
-      amenu.style.display = 'none';
+      closeAddMenu();
     }
   }
   // Drawer stays open until user taps the ✕ close button — no auto-close on outside tap

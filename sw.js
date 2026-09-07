@@ -1,5 +1,5 @@
 // Hoardr Service Worker — v1.0
-const CACHE_NAME = 'hoardr-v4';
+const CACHE_NAME = 'hoardr-v5';
 // RELATIVE paths — the site is served from the root on hoardrapp.com but from
 // /collectors-vault/ on github.io. Absolute /collectors-vault/ paths 404 on the
 // custom domain, which makes cache.addAll() reject and the worker never install.
