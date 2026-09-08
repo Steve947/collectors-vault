@@ -1377,10 +1377,11 @@ const TEST_PRO_EMAILS = [
 const PRO_EMAILS = OWNER_PRO_EMAILS.concat(TEST_PRO_EMAILS).map(e => e.toLowerCase());
 
 // ── AI features: available to Pro subscribers and owners. isProUser reflects
-//    billing (users/{uid}.isPro, set by the Stripe webhook) plus the owner
-//    allowlist; the server enforces the same rule via resolveIsPro. ──
+//    AI is available to every signed-in account. The tier only changes the
+//    monthly quota (free 5, Pro 50); the server enforces it via consumeQuota,
+//    and OWNER_PRO_EMAILS get an unlimited allowance server-side. ──
 const AI_ALPHA_EMAILS = OWNER_PRO_EMAILS.map(e => e.toLowerCase());
-function isAiAlpha(){ return !!currentUser && isProUser; }
+function isAiAlpha(){ return !!currentUser; }
 function updateAiUi(){ const on=isAiAlpha(); ['aiTidyBtn','aiFillBtn','aiValueBtn','aiValueViewBtn','smartImportLabelD','importSecM'].forEach(id=>{const b=document.getElementById(id); if(b) b.style.display = on ? '' : 'none';}); }
 let _aiTidyPending = '';
 async function aiTidyNotes(){
@@ -1408,6 +1409,7 @@ async function aiTidyNotes(){
     document.getElementById('aiTidyResult').value = suggestion;
     openModal('aiTidyOverlay');
   }catch(e){
+    if(_handleAiQuota(e)) return;
     const code = (e && e.code) || '';
     if(code.indexOf('permission-denied')>=0) showToast('AI is in limited testing right now','\uD83D\uDD12');
     else if(code.indexOf('resource-exhausted')>=0) showToast(e.message || 'AI limit reached for now','\u23F3');
@@ -1516,6 +1518,7 @@ async function aiValueApply(){
   }
 }
 function _aiValueErr(e){
+  if(_handleAiQuota(e)) return;
   const c=(e&&e.code)||'';
   if(c.indexOf('permission-denied')>=0) showToast('AI is in limited testing right now','🔒');
   else if(c.indexOf('resource-exhausted')>=0) showToast(e.message||'AI limit reached','⏳');
@@ -1694,7 +1697,7 @@ function _siShowErr(msg,icon){ showToast(msg,icon||'⚠️'); const body=documen
 function _siOpenBusy(msg){ _smartImport=null; const body=document.getElementById('smartImportBody'); if(body) body.innerHTML='<div style="padding:34px 10px;text-align:center;color:var(--text3)"><div class="si-spin" style="font-size:30px;margin-bottom:12px">⏳</div><div style="font-size:14px;color:var(--text2)">'+escH(msg||'Reading and analysing…')+'</div><div style="font-size:12px;margin-top:6px">The AI is reading your import — this can take a few seconds.</div></div>'; const btn=document.getElementById('siImportBtn'); if(btn) btn.style.display='none'; openModal('smartImportOverlay'); }
 function _loadScript(src){ return new Promise((res,rej)=>{ if(document.querySelector('script[data-si="'+src+'"]')) return res(); const sc=document.createElement('script'); sc.src=src; sc.setAttribute('data-si',src); sc.onload=()=>res(); sc.onerror=()=>rej(new Error('Failed to load '+src)); document.head.appendChild(sc); }); }
 function _fileDataUrl(file){ return new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result)); fr.onerror=rej; fr.readAsDataURL(file); }); }
-function _siErr(err){ const c=(err&&err.code)||''; let m; if(c.indexOf('resource-exhausted')>=0) m=err.message||'AI limit reached for now'; else if(c.indexOf('permission-denied')>=0) m='Smart Import is in limited testing right now'; else m='Smart Import failed — '+((err&&err.message)||'please try again'); _siShowErr(m); }
+function _siErr(err){ if(_handleAiQuota(err)) return; const c=(err&&err.code)||''; let m; if(c.indexOf('resource-exhausted')>=0) m=err.message||'AI limit reached for now'; else if(c.indexOf('permission-denied')>=0) m='Smart Import is in limited testing right now'; else m='Smart Import failed — '+((err&&err.message)||'please try again'); _siShowErr(m); }
 
 function smartImportPaste(){
   if(!_siGuard()) return;
@@ -1881,7 +1884,31 @@ async function _refreshEntitlement(){
     const was = isProUser;
     isProUser = pro || PRO_EMAILS.includes((currentUser.email||'').toLowerCase());
     if(isProUser!==was){ try{ updateAiUi(); }catch(e){} try{ render(); }catch(e){} }
+    _refreshAiQuota();
   }catch(e){ /* read rule not deployed yet, or offline — keep the allowlist fallback */ }
+}
+// ── AI monthly quota (free taste vs Pro). Server-enforced; this is display + upsell. ──
+let _aiUsage = { used: 0, limit: null };
+async function _refreshAiQuota(){
+  try{
+    if(!(firebaseMode && currentUser)) return;
+    const snap = await firestoreDb.doc(`${userPath()}/usage/${_monthKey()}`).get();
+    _aiUsage.used = (snap.exists && snap.get('aiActions')) || 0;
+    _aiUsage.limit = (snap.exists && snap.get('limit')) || (isProUser ? 50 : 5);
+  }catch(e){ /* usage read rule not deployed, or offline — keep defaults */ }
+}
+function _handleAiQuota(e){
+  const c=(e&&e.code)||'';
+  if(c.indexOf('resource-exhausted')<0) return false;
+  _refreshAiQuota().then(function(){ try{ _renderProUI(); }catch(_){} });
+  const reason=(e&&e.details&&e.details.reason)||'';
+  if(reason==='quota_free' || !isProUser){
+    showToast((e&&e.message)||'You have reached your free AI limit this month','🔒');
+    try{ openUpgrade(); }catch(_){}
+  } else {
+    showToast((e&&e.message)||'You have reached your AI limit this month','⏳');
+  }
+  return true;
 }
 
 // ── Currency preference (stored per user in Firestore + mirrored to localStorage) ──
@@ -2001,12 +2028,16 @@ async function openBillingPortal(){
 }
 function _renderProUI(){
   const box=document.getElementById('pfPro'); if(!box) return;
+  const _lim=_aiUsage.limit||(isProUser?50:5), _used=_aiUsage.used||0, _left=Math.max(0,_lim-_used);
+  const _usageLine='<div style="font-size:11px;color:var(--text3);margin:6px 0 2px">AI actions this month: <strong style="color:var(--text2)">'+_used+' of '+_lim+'</strong> used'+(_left<=0?' (resets on the 1st)':'')+'</div>';
   if(isProUser){
-    box.innerHTML='<div style="font-size:13px;color:var(--gold2);margin-bottom:8px">✓ You\'re on Hoardr Pro</div>'
-      +'<button class="btn btn-outline" style="width:100%;justify-content:center" onclick="openBillingPortal()">Manage subscription</button>';
+    box.innerHTML='<div style="font-size:13px;color:var(--gold2);margin-bottom:2px">✓ You\'re on Hoardr Pro</div>'
+      +_usageLine
+      +'<button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px" onclick="openBillingPortal()">Manage subscription</button>';
   } else {
-    box.innerHTML='<p style="font-size:12px;color:var(--text3);margin-bottom:8px">Unlock AI cataloguing, value estimates & tracking, and monthly reports.</p>'
-      +'<button class="btn btn-gold" style="width:100%;justify-content:center" onclick="closeModal(\'profileModal\');openUpgrade()">Upgrade to Pro</button>';
+    box.innerHTML='<p style="font-size:12px;color:var(--text3);margin-bottom:2px">Unlock more with Pro: AI cataloguing, value estimates and tracking, and monthly reports.</p>'
+      +_usageLine
+      +'<button class="btn btn-gold" style="width:100%;justify-content:center;margin-top:8px" onclick="closeModal(\'profileModal\');openUpgrade()">Upgrade to Pro</button>';
   }
 }
 // ── Periodic "Upgrade to Pro" nudge ─────────────────────────────────────────
@@ -3911,6 +3942,7 @@ function openProfile(){
   if (_v) _v.innerHTML = 'Hoardr v' + APP_VERSION + ' · ' + APP_VERSION_DATE
     + ' · <a href="#" onclick="closeModal(\'profileModal\');openWhatsNew();return false" style="color:var(--gold2)">What&rsquo;s new</a>';
   _renderProUI();
+  _refreshAiQuota().then(function(){ try{ _renderProUI(); }catch(_){} });
   _renderNotifPrefsUI();
   openModal('profileModal');
 }
