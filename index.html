@@ -3972,33 +3972,24 @@ async function resendVerification(){
 }
 async function deleteAccount(){
   if(!currentUser) return;
-  if(!confirm('Permanently delete your account AND all your collections, groups, items and photos? This cannot be undone.')) return;
+  if(!confirm('Permanently delete your account AND all your collections, groups, items and photos? This also cancels any active subscription. This cannot be undone.')) return;
   const typed=prompt('To confirm, type DELETE (in capitals):');
   if(typed!=='DELETE'){ showToast('Deletion cancelled','✕'); return; }
   try{
     setSyncStatus('syncing');
-    if(firebaseMode){
-      for(const c of ['items','groups','collections']){
-        const snap=await firestoreDb.collection(`${userPath()}/${c}`).get();
-        const docs=snap.docs;
-        for(let i=0;i<docs.length;i+=400){
-          const batch=firestoreDb.batch();
-          docs.slice(i,i+400).forEach(d=>batch.delete(d.ref));
-          await batch.commit();
-        }
-      }
-      // Photos live outside Firestore — delete them too, or they survive
-      // the account. Runs before currentUser.delete() while auth still holds.
-      await deleteStorageFolder(`users/${currentUser.uid}`);
-      await currentUser.delete();
-    }
+    if(!fnSvc) throw new Error('reload and try again');
+    // The server cancels the subscription, deletes all data (incl. the account
+    // record that holds Pro), removes photos, and deletes the login itself.
+    const r = await fnSvc.httpsCallable('deleteAccount')();
+    const authGone = !!(r && r.data && r.data.authDeleted);
+    // If the server could not remove the login, finish it from the client.
+    if(!authGone){ try{ await currentUser.delete(); }catch(_){ /* needs recent login, or already gone */ } }
+    try{ await auth.signOut(); }catch(_){}
     showToast('Account deleted','✓');
     closeModal('profileModal');
   }catch(e){
     setSyncStatus('synced');
-    if(e&&e.code==='auth/requires-recent-login'){
-      showToast('For security, please sign out and sign in again, then delete.','⚠️');
-    } else { showToast('Delete failed — '+((e&&e.message)||e),'⚠️'); }
+    showToast('Delete failed: '+((e&&e.message)||e),'⚠️');
   }
 }
 
