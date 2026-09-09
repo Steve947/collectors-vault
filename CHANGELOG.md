@@ -4,6 +4,15 @@ All notable changes to Hoardr are recorded here. Versioning is `MAJOR.MINOR.PATC
 with the release date; the same list drives the in-app **What's New** panel
 (Profile → "What's new"). Newest first.
 
+## [1.4.2] — 2026-09-09
+
+### Added
+- **Find in mining catalogue (Diecast).** A search box at the top of the Diecast details autofills the maker, vehicle make, model, scale and year from a curated reference catalogue of mining and construction models. Start typing a model (e.g. 797F, Komatsu 930E, Liebherr T282) and pick it; every field stays editable.
+- **AI grounding (in limited testing).** The AI value estimate and photo identify now pull matching entries from the same reference catalogue and pass them to the model as grounding facts, so it pins the exact release (maker, scale, edition) and finds better sold comparables. Best-effort: if the catalogue is unreachable the AI call still runs. Requires the published `mining-catalog.json` (ships with the site) and a redeploy of the `aiAssist` function.
+
+### Changed
+- Sidebar collection names are now fully readable; each row's action buttons stay hidden until you hover (and remain visible on mobile).
+
 ## [1.4.1] — 2026-09-04
 
 ### Added (in limited testing)

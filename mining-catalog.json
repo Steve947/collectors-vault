@@ -28,6 +28,8 @@
     "forklift",
     "truck",
     "trailer",
+    "track loader",
+    "milling machine",
     "other",
     "support"
   ],
@@ -74,14 +76,14 @@
     "Weiss Brothers",
     "Yonezawa Diapet"
   ],
-  "recordCount": 418,
-  "verifiedCount": 33,
+  "recordCount": 417,
+  "verifiedCount": 35,
   "curatedCount": 40,
-  "seedCount": 378,
+  "seedCount": 377,
   "provenanceCounts": {
-    "vendor-verified": 33,
-    "cornerstone": 7,
-    "collector-catalogue": 378
+    "vendor-verified": 35,
+    "cornerstone": 5,
+    "collector-catalogue": 377
   },
   "models": [
     {
@@ -1158,7 +1160,7 @@
     },
     {
       "id": "cornerstone-bucyrus-8750-dragline",
-      "maker": null,
+      "maker": "NZG",
       "itemNumber": null,
       "modelName": "Bucyrus 8750 Walking Dragline",
       "machineMake": "Bucyrus",
@@ -1179,12 +1181,12 @@
         "walking dragline"
       ],
       "verified": false,
+      "provenance": "cornerstone",
       "sources": [
-        "https://twh.miniature-construction-world.co.uk/index.php?contentID=bucyrus-8750&menuID=bucyrus",
-        "http://www.nzg-modelle.de/nzg/download/Bucyrus_8750_ProdGuide.pdf"
+        "http://www.nzg-modelle.de/nzg/download/Bucyrus_8750_ProdGuide.pdf",
+        "https://twh.miniature-construction-world.co.uk/index.php?contentID=bucyrus-8750&menuID=bucyrus"
       ],
-      "notes": "CORNERSTONE and the marquee dragline of the niche. A landmark 1:50 model produced by NZG and branded by TWH; confirm the exact maker and SKU before marking verified.",
-      "provenance": "cornerstone"
+      "notes": "CORNERSTONE and the marquee dragline of the niche. A landmark 1:50 model; NZG confirmed as maker via their official product guide, exact SKU still to confirm. The ESCO/CR Mining dragline bucket was released separately (TWH 098-01334; a Weiss Brothers 40 Years bucket also exists)."
     },
     {
       "id": "cornerstone-komatsu-hd785",
@@ -1212,38 +1214,41 @@
       "provenance": "cornerstone"
     },
     {
-      "id": "cornerstone-komatsu-pc1250",
+      "id": "nzg-9991-komatsu-pc1250",
       "maker": "NZG",
-      "itemNumber": null,
-      "modelName": "Komatsu PC1250 Hydraulic Excavator",
+      "itemNumber": "9991",
+      "modelName": "Komatsu PC1250-11 Hydraulic Excavator",
       "machineMake": "Komatsu",
-      "machineModel": "PC1250",
+      "machineModel": "PC1250-11",
       "machineType": "hydraulic excavator",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
-      "limited": null,
+      "limited": false,
       "msrp": null,
       "retail": null,
       "variants": [
-        "backhoe",
-        "with demolition equipment"
+        "demolition equipment (9991)",
+        "Lehnhoff quick-coupler (9992)",
+        "white (9992-01)"
       ],
       "aliases": [
         "Komatsu PC1250",
-        "PC1250"
+        "PC1250",
+        "PC1250-11",
+        "NZG 9991"
       ],
-      "verified": false,
+      "verified": true,
       "sources": [
-        "https://livecarmodel.com/products/1-50-nzg-komatsu-pc1250-excavator-with-demolition-equipment-diecast-model.html"
+        "https://www.3000toys.com/construction/scale-1-50/product/komatsu-pc1250-11-tracked-excavator-demolition-equipment-nzg-9991"
       ],
-      "notes": "Large hydraulic excavator produced in 1:50 by NZG; capture the exact NZG item number to mark verified.",
-      "provenance": "cornerstone"
+      "notes": "Large hydraulic excavator; NZG produce several PC1250-11 configurations in 1:50.",
+      "provenance": "vendor-verified"
     },
     {
-      "id": "cornerstone-liebherr-r9400",
+      "id": "nzg-860-liebherr-r9400",
       "maker": "NZG",
-      "itemNumber": null,
+      "itemNumber": "860",
       "modelName": "Liebherr R9400 Mining Excavator",
       "machineMake": "Liebherr",
       "machineModel": "R9400",
@@ -1251,22 +1256,24 @@
       "scale": "1:50",
       "year": null,
       "editionSize": null,
-      "limited": null,
+      "limited": false,
       "msrp": null,
       "retail": null,
       "variants": [
-        "backhoe (TL)"
+        "backhoe (8601)"
       ],
       "aliases": [
         "Liebherr R9400",
-        "R 9400"
+        "R 9400",
+        "NZG 860"
       ],
-      "verified": false,
+      "verified": true,
       "sources": [
-        "https://livecarmodel.com/products/1-50-nzg-liebherr-r9400-tl-mining-excavator-backhoe-diecast-model.html"
+        "https://www.3000toys.com/NZG-Model-Liebherr-R9400-Mining-Excavator/sku/NZG860",
+        "https://www.3000toys.com/construction/scale-1-50/product/liebherr-r9400-mining-excavator-backhoe-nzg-8601"
       ],
-      "notes": "Mid large mining excavator produced in 1:50 by NZG; capture the exact NZG item number to mark verified.",
-      "provenance": "cornerstone"
+      "notes": "Large hydraulic mining excavator; NZG 860 (backhoe variant 8601).",
+      "provenance": "vendor-verified"
     },
     {
       "id": "cornerstone-hitachi-ex5600",
@@ -2219,7 +2226,7 @@
       "modelName": "Caterpillar 345B Series II Material Handler",
       "machineMake": "Caterpillar",
       "machineModel": "345B Series II",
-      "machineType": "other",
+      "machineType": "hydraulic excavator",
       "scale": "1:50",
       "year": 2001,
       "editionSize": null,
@@ -2975,7 +2982,7 @@
       "modelName": "Caterpillar 769B Off Highway Truck",
       "machineMake": "Caterpillar",
       "machineModel": "769B",
-      "machineType": "haul truck",
+      "machineType": "off-highway truck",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -3002,7 +3009,7 @@
       "modelName": "Caterpillar 769C Off Highway Truck",
       "machineMake": "Caterpillar",
       "machineModel": "769C",
-      "machineType": "haul truck",
+      "machineType": "off-highway truck",
       "scale": "1:50",
       "year": 1998,
       "editionSize": null,
@@ -3029,7 +3036,7 @@
       "modelName": "Caterpillar 772 Off Highway Truck",
       "machineMake": "Caterpillar",
       "machineModel": "772",
-      "machineType": "haul truck",
+      "machineType": "off-highway truck",
       "scale": "1:50",
       "year": 2008,
       "editionSize": null,
@@ -3110,7 +3117,7 @@
       "modelName": "Caterpillar 789 Off Highway Truck",
       "machineMake": "Caterpillar",
       "machineModel": "789",
-      "machineType": "haul truck",
+      "machineType": "off-highway truck",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -3137,7 +3144,7 @@
       "modelName": "Caterpillar 793C Off Highway Truck",
       "machineMake": "Caterpillar",
       "machineModel": "793C",
-      "machineType": "haul truck",
+      "machineType": "off-highway truck",
       "scale": "1:50",
       "year": 1997,
       "editionSize": null,
@@ -3164,7 +3171,7 @@
       "modelName": "Caterpillar 793D Off Highway Truck",
       "machineMake": "Caterpillar",
       "machineModel": "793D",
-      "machineType": "haul truck",
+      "machineType": "off-highway truck",
       "scale": "1:50",
       "year": 2006,
       "editionSize": null,
@@ -3191,7 +3198,7 @@
       "modelName": "Caterpillar 797 Off Highway Truck",
       "machineMake": "Caterpillar",
       "machineModel": "797",
-      "machineType": "haul truck",
+      "machineType": "off-highway truck",
       "scale": "1:50",
       "year": 2001,
       "editionSize": null,
@@ -3515,7 +3522,7 @@
       "modelName": "Caterpillar 953 Track Type Loader",
       "machineMake": "Caterpillar",
       "machineModel": "953",
-      "machineType": "wheel loader",
+      "machineType": "track loader",
       "scale": "1:50",
       "year": 1985,
       "editionSize": null,
@@ -3542,7 +3549,7 @@
       "modelName": "Caterpillar 955 Track Type Loader",
       "machineMake": "Caterpillar",
       "machineModel": "955",
-      "machineType": "wheel loader",
+      "machineType": "track loader",
       "scale": "1:50",
       "year": 1970,
       "editionSize": null,
@@ -3569,7 +3576,7 @@
       "modelName": "Caterpillar 955L Track type Loader",
       "machineMake": "Caterpillar",
       "machineModel": "955L",
-      "machineType": "wheel loader",
+      "machineType": "track loader",
       "scale": "1:70",
       "year": 1991,
       "editionSize": null,
@@ -3596,7 +3603,7 @@
       "modelName": "Caterpillar 963D Track type Loader",
       "machineMake": "Caterpillar",
       "machineModel": "963D",
-      "machineType": "wheel loader",
+      "machineType": "track loader",
       "scale": "1:50",
       "year": 2007,
       "editionSize": null,
@@ -3623,7 +3630,7 @@
       "modelName": "Caterpillar 966A Traxcavator",
       "machineMake": "Caterpillar",
       "machineModel": "966A",
-      "machineType": "other",
+      "machineType": "track loader",
       "scale": "1:50",
       "year": 2009,
       "editionSize": null,
@@ -3731,7 +3738,7 @@
       "modelName": "Caterpillar 977 Traxcavator",
       "machineMake": "Caterpillar",
       "machineModel": "977",
-      "machineType": "other",
+      "machineType": "track loader",
       "scale": "1:50",
       "year": 2007,
       "editionSize": null,
@@ -3785,7 +3792,7 @@
       "modelName": "Caterpillar 983 Track Type Loader",
       "machineMake": "Caterpillar",
       "machineModel": "983",
-      "machineType": "wheel loader",
+      "machineType": "track loader",
       "scale": "1:50",
       "year": 1972,
       "editionSize": null,
@@ -5216,7 +5223,7 @@
       "modelName": "Caterpillar PM200 Cold Planner",
       "machineMake": "Caterpillar",
       "machineModel": "PM200",
-      "machineType": "other",
+      "machineType": "milling machine",
       "scale": "1:50",
       "year": 2012,
       "editionSize": null,
@@ -5243,7 +5250,7 @@
       "modelName": "Caterpillar PR-450 Profiler",
       "machineMake": "Caterpillar",
       "machineModel": "PR-450",
-      "machineType": "other",
+      "machineType": "milling machine",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -5324,7 +5331,7 @@
       "modelName": "Caterpillar Twenty-two ACMOC Crawler",
       "machineMake": "Caterpillar",
       "machineModel": "Twenty-two",
-      "machineType": "other",
+      "machineType": "dozer",
       "scale": "1:16",
       "year": 2006,
       "editionSize": null,
@@ -5721,7 +5728,7 @@
       "modelName": "Drake Bowers Ballast Box \"Bowers Heavy Haulage\" Ballst Box",
       "machineMake": "Drake",
       "machineModel": "Bowers Ballast Box",
-      "machineType": "other",
+      "machineType": "trailer",
       "scale": "1:50",
       "year": 2019,
       "editionSize": null,
@@ -6018,7 +6025,7 @@
       "modelName": "Freighter Eziliner B-Double \"Bowers Heavy Haulage\"",
       "machineMake": "Freighter",
       "machineModel": "Eziliner B-Double",
-      "machineType": "other",
+      "machineType": "trailer",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -6639,7 +6646,7 @@
       "modelName": "Ingersoll Rand 175 8D Mobile Air Compressor",
       "machineMake": "Ingersoll Rand",
       "machineModel": "175 8D",
-      "machineType": "other",
+      "machineType": "support",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -6770,7 +6777,7 @@
       "modelName": "International TD15 Crawler",
       "machineMake": "International",
       "machineModel": "TD15",
-      "machineType": "other",
+      "machineType": "dozer",
       "scale": "1:50",
       "year": 2005,
       "editionSize": null,
@@ -6797,7 +6804,7 @@
       "modelName": "International TD24 Crawler (Hydraulic Blade)",
       "machineMake": "International",
       "machineModel": "TD24",
-      "machineType": "other",
+      "machineType": "dozer",
       "scale": "1:50",
       "year": 2007,
       "editionSize": null,
@@ -7329,7 +7336,7 @@
       "modelName": "Kenworth(Bowers) Legend 900 \"Bowers Heavy Haulage\" Tandem drive. 571/750",
       "machineMake": "Kenworth(Bowers)",
       "machineModel": "Legend 900",
-      "machineType": "other",
+      "machineType": "truck",
       "scale": "1:50",
       "year": 2019,
       "editionSize": null,
@@ -7356,7 +7363,7 @@
       "modelName": "Kenworth(Bowers) C509 \"Bowers Heavy Haulage\" Tandem drive",
       "machineMake": "Kenworth(Bowers)",
       "machineModel": "C509",
-      "machineType": "other",
+      "machineType": "truck",
       "scale": "1:50",
       "year": 2020,
       "editionSize": null,
@@ -7410,7 +7417,7 @@
       "modelName": "Kenworth(Toll) T909 \"Toll\" Tandem drive",
       "machineMake": "Kenworth(Toll)",
       "machineModel": "T909",
-      "machineType": "other",
+      "machineType": "truck",
       "scale": "1:50",
       "year": 2021,
       "editionSize": null,
@@ -7788,7 +7795,7 @@
       "modelName": "Komatsu D65S Track type Loader",
       "machineMake": "Komatsu",
       "machineModel": "D65S",
-      "machineType": "wheel loader",
+      "machineType": "track loader",
       "scale": "1:48",
       "year": null,
       "editionSize": null,
@@ -8702,7 +8709,7 @@
       "modelName": "Liebherr 621 Track type Loader",
       "machineMake": "Liebherr",
       "machineModel": "621",
-      "machineType": "wheel loader",
+      "machineType": "track loader",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -8864,7 +8871,7 @@
       "modelName": "Liebherr LR621 Track Loader",
       "machineMake": "Liebherr",
       "machineModel": "LR621",
-      "machineType": "wheel loader",
+      "machineType": "track loader",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -9053,7 +9060,7 @@
       "modelName": "Liebherr MTR924 HDSL Hydraulic Digger",
       "machineMake": "Liebherr",
       "machineModel": "MTR924 HDSL",
-      "machineType": "other",
+      "machineType": "hydraulic excavator",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -9209,34 +9216,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-liebherr-t282b-1-50-294",
-      "maker": "Conrad",
-      "itemNumber": null,
-      "modelName": "Liebherr T282B Mining Truck",
-      "machineMake": "Liebherr",
-      "machineModel": "T282B",
-      "machineType": "haul truck",
-      "scale": "1:50",
-      "year": null,
-      "editionSize": null,
-      "limited": null,
-      "msrp": null,
-      "retail": null,
-      "variants": [
-        "White"
-      ],
-      "aliases": [
-        "Liebherr T282B",
-        "T282B",
-        "Conrad Liebherr T282B"
-      ],
-      "verified": false,
-      "provenance": "collector-catalogue",
-      "sources": [],
-      "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
-    },
-    {
-      "id": "seed-ertl-link-belt-210lx-1-50-295",
+      "id": "seed-ertl-link-belt-210lx-1-50-294",
       "maker": "Ertl",
       "itemNumber": null,
       "modelName": "Link-Belt 210LX Excavator",
@@ -9263,7 +9243,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-ertl-link-belt-210x3-1-50-296",
+      "id": "seed-ertl-link-belt-210x3-1-50-295",
       "maker": "Ertl",
       "itemNumber": null,
       "modelName": "Link-Belt 210X3 Excavator",
@@ -9290,7 +9270,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-ertl-link-belt-d300-1-50-297",
+      "id": "seed-ertl-link-belt-d300-1-50-296",
       "maker": "Ertl",
       "itemNumber": null,
       "modelName": "Link-Belt D300 Articulated Truck",
@@ -9317,13 +9297,13 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-drake-mack-bowers-super-liner-1-50-298",
+      "id": "seed-drake-mack-bowers-super-liner-1-50-297",
       "maker": "Drake",
       "itemNumber": null,
       "modelName": "Mack(Bowers) Super Liner \"Bowers Heavy Haulage\" Tandem drive. 409/750",
       "machineMake": "Mack(Bowers)",
       "machineModel": "Super Liner",
-      "machineType": "other",
+      "machineType": "truck",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -9344,7 +9324,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-first-gear-mack-rw-miller-granite-1-50-299",
+      "id": "seed-first-gear-mack-rw-miller-granite-1-50-298",
       "maker": "First Gear",
       "itemNumber": null,
       "modelName": "Mack(RW Miller) Granite Dump Truck - 'RW Miller' livery",
@@ -9371,7 +9351,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-first-gear-mack-granite-1-50-300",
+      "id": "seed-first-gear-mack-granite-1-50-299",
       "maker": "First Gear",
       "itemNumber": null,
       "modelName": "Mack Granite Tandem Drive Day Cab & Talbert Tri-Axle Lowboy Trailer",
@@ -9398,7 +9378,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-massey-ferguson-60hx-1-35-301",
+      "id": "seed-conrad-massey-ferguson-60hx-1-35-300",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "Massey Ferguson 60HX Series T Centremount MF475 Backhoe",
@@ -9425,7 +9405,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-mavac-mavac-1-53-302",
+      "id": "seed-tonkin-replicas-mavac-mavac-1-53-301",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Mavac Mavac Spread Axle Flat Bed Trailer with Headache Rack",
@@ -9452,7 +9432,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-siku-menck-m500h-1-50-303",
+      "id": "seed-siku-menck-m500h-1-50-302",
       "maker": "Siku",
       "itemNumber": null,
       "modelName": "Menck M500H Excavator",
@@ -9479,7 +9459,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-michigan-clark-175c-1-50-304",
+      "id": "seed-conrad-michigan-clark-175c-1-50-303",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "Michigan(Clark) 175C Wheel Loader",
@@ -9506,7 +9486,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-joal-michigan-l320-1-50-305",
+      "id": "seed-joal-michigan-l320-1-50-304",
       "maker": "Joal",
       "itemNumber": null,
       "modelName": "Michigan L320 Wheel Loader",
@@ -9533,7 +9513,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-moxy-mt30-1-50-306",
+      "id": "seed-nzg-moxy-mt30-1-50-305",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "Moxy MT30 Articulated Truck",
@@ -9560,7 +9540,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-moxy-komatsu-mt30-1-50-307",
+      "id": "seed-nzg-moxy-komatsu-mt30-1-50-306",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "Moxy(Komatsu) MT30 Articulated Truck",
@@ -9587,7 +9567,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-moxy-mt31-1-50-308",
+      "id": "seed-nzg-moxy-mt31-1-50-307",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "Moxy MT31 Articulated Truck",
@@ -9614,7 +9594,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-ertl-new-holland-dc180-1-50-309",
+      "id": "seed-ertl-new-holland-dc180-1-50-308",
       "maker": "Ertl",
       "itemNumber": null,
       "modelName": "New Holland DC180 Bulldozer",
@@ -9641,7 +9621,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-ertl-new-holland-g200-1-50-310",
+      "id": "seed-ertl-new-holland-g200-1-50-309",
       "maker": "Ertl",
       "itemNumber": null,
       "modelName": "New Holland G200 Motor Grader",
@@ -9668,7 +9648,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-ros-new-holland-lb115b-1-50-311",
+      "id": "seed-ros-new-holland-lb115b-1-50-310",
       "maker": "Ros",
       "itemNumber": null,
       "modelName": "New Holland LB115B Backhoe Loader",
@@ -9695,7 +9675,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-speccast-northwest-engineering-25-d-1-50-312",
+      "id": "seed-speccast-northwest-engineering-25-d-1-50-311",
       "maker": "SpecCast",
       "itemNumber": null,
       "modelName": "Northwest Engineering 25-D Shovel",
@@ -9722,7 +9702,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-f156a-1-50-313",
+      "id": "seed-nzg-oandk-f156a-1-50-312",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K F156A Motor Grader",
@@ -9749,7 +9729,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-g130-1-50-314",
+      "id": "seed-nzg-oandk-g130-1-50-313",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K G130 Motor Grader",
@@ -9776,7 +9756,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-gamma-oandk-k55-1-50-315",
+      "id": "seed-gamma-oandk-k55-1-50-314",
       "maker": "Gamma",
       "itemNumber": null,
       "modelName": "O&K K55 Dump Truck",
@@ -9803,7 +9783,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-l8-1-50-316",
+      "id": "seed-nzg-oandk-l8-1-50-315",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K L8 Wheel Loader",
@@ -9830,7 +9810,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-l30-1-50-317",
+      "id": "seed-nzg-oandk-l30-1-50-316",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K L30 Wheel Loader",
@@ -9857,7 +9837,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-oandk-l55-1-50-318",
+      "id": "seed-conrad-oandk-l55-1-50-317",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "O&K L55 Wheel Loader",
@@ -9884,7 +9864,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-l651-1-50-319",
+      "id": "seed-nzg-oandk-l651-1-50-318",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K L651 Shovel",
@@ -9911,7 +9891,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-mh4-1-50-320",
+      "id": "seed-nzg-oandk-mh4-1-50-319",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K MH4 Tracked Excavator",
@@ -9938,7 +9918,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-mh5pms-1-50-321",
+      "id": "seed-nzg-oandk-mh5pms-1-50-320",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K MH5PMS Wheeled Excavator",
@@ -9965,7 +9945,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-rh6-1-50-322",
+      "id": "seed-nzg-oandk-rh6-1-50-321",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K RH6 Tracked Excavator",
@@ -9992,7 +9972,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-oandk-rh9-1-50-323",
+      "id": "seed-conrad-oandk-rh9-1-50-322",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "O&K RH9 Excavator",
@@ -10019,7 +9999,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-rh30-c-1-50-324",
+      "id": "seed-nzg-oandk-rh30-c-1-50-323",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K RH30-C Hydraulic Front Shovel",
@@ -10046,7 +10026,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-rh30-e-1-50-325",
+      "id": "seed-nzg-oandk-rh30-e-1-50-324",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K RH30-E Hydraulic Front Shovel",
@@ -10073,7 +10053,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-sh400-1-100-326",
+      "id": "seed-nzg-oandk-sh400-1-100-325",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K SH400 Bucket Wheel Excavator",
@@ -10100,7 +10080,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-oandk-v25-1-25-327",
+      "id": "seed-nzg-oandk-v25-1-25-326",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "O&K V25 Forklift",
@@ -10127,7 +10107,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-pandh-2800-1-87-328",
+      "id": "seed-conrad-pandh-2800-1-87-327",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "P&H 2800 Rope Shovel",
@@ -10154,7 +10134,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-ertl-pandh-4100a-1-87-329",
+      "id": "seed-ertl-pandh-4100a-1-87-328",
       "maker": "Ertl",
       "itemNumber": null,
       "modelName": "P&H 4100A Rope Shovel",
@@ -10181,7 +10161,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-pandh-t-1300-1-50-330",
+      "id": "seed-conrad-pandh-t-1300-1-50-329",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "P&H T-1300 Hydraulic Truck Crane",
@@ -10208,7 +10188,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-matchbox-peterbilt-not-known-1-50-331",
+      "id": "seed-matchbox-peterbilt-not-known-1-50-330",
       "maker": "Matchbox",
       "itemNumber": null,
       "modelName": "Peterbilt not known Tractor Trailer -Jim Beam 200th Ann",
@@ -10235,13 +10215,13 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-twh-peterbilt-335-1-50-332",
+      "id": "seed-twh-peterbilt-335-1-50-331",
       "maker": "TWH",
       "itemNumber": null,
       "modelName": "Peterbilt 335 Jerr-Dan Steel Shark 5 Ton Roll Back Tilt Tray",
       "machineMake": "Peterbilt",
       "machineModel": "335",
-      "machineType": "other",
+      "machineType": "truck",
       "scale": "1:50",
       "year": 2008,
       "editionSize": null,
@@ -10262,7 +10242,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-peterbilt-379x-show-truck-1-53-333",
+      "id": "seed-tonkin-replicas-peterbilt-379x-show-truck-1-53-332",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Peterbilt 379X Show truck 70\" Sleeper Cab & 53' Dry Van Trailer",
@@ -10289,7 +10269,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-peterbilt-388-single-axle-1-53-334",
+      "id": "seed-tonkin-replicas-peterbilt-388-single-axle-1-53-333",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Peterbilt 388 Single Axle Day Cab \"Delta Transport\" & 26' Double Flatbed Trailers",
@@ -10316,7 +10296,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-peterbilt-388-tandem-axle-1-53-335",
+      "id": "seed-tonkin-replicas-peterbilt-388-tandem-axle-1-53-334",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Peterbilt 388 Tandem Axle 70\" Sleeper Cab & Tanker Trailer 'Action Resources'",
@@ -10343,7 +10323,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-peterbilt-388-1-53-336",
+      "id": "seed-tonkin-replicas-peterbilt-388-1-53-335",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Peterbilt 388 Day cab long wheelbase Prime Mover",
@@ -10370,7 +10350,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-joal-ppm-530att-1-50-337",
+      "id": "seed-joal-ppm-530att-1-50-336",
       "maker": "Joal",
       "itemNumber": null,
       "modelName": "PPM 530ATT Mobile Crane",
@@ -10397,7 +10377,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-oxford-diecast-rac-and-aa-road-service-vehicles-1-76-338",
+      "id": "seed-oxford-diecast-rac-and-aa-road-service-vehicles-1-76-337",
       "maker": "Oxford Diecast",
       "itemNumber": null,
       "modelName": "RAC & AA Road Service Vehicles 2 x Sidecar motorcycles, Land Rover & Ford Recovery Truck",
@@ -10424,7 +10404,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-norscot-roadtec-rp190-1-50-339",
+      "id": "seed-norscot-roadtec-rp190-1-50-338",
       "maker": "Norscot",
       "itemNumber": null,
       "modelName": "Roadtec RP190 Paver",
@@ -10451,13 +10431,13 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-norscot-roadtec-rx-700-1-50-340",
+      "id": "seed-norscot-roadtec-rx-700-1-50-339",
       "maker": "Norscot",
       "itemNumber": null,
       "modelName": "Roadtec RX-700 Cold Planer",
       "machineMake": "Roadtec",
       "machineModel": "RX-700",
-      "machineType": "other",
+      "machineType": "milling machine",
       "scale": "1:50",
       "year": 2010,
       "editionSize": null,
@@ -10478,7 +10458,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-ruston-bucyrus-155-rh-1-50-341",
+      "id": "seed-conrad-ruston-bucyrus-155-rh-1-50-340",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "Ruston Bucyrus 155-RH Hydraulic Excavator",
@@ -10505,7 +10485,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-ertl-ruston-bucyrus-22rb-1-87-342",
+      "id": "seed-ertl-ruston-bucyrus-22rb-1-87-341",
       "maker": "Ertl",
       "itemNumber": null,
       "modelName": "Ruston Bucyrus 22RB Dragline",
@@ -10530,7 +10510,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-sennebogen-sennebogen-683hd-1-50-343",
+      "id": "seed-sennebogen-sennebogen-683hd-1-50-342",
       "maker": "Sennebogen",
       "itemNumber": null,
       "modelName": "Sennebogen 683HD Telescopic Crane 80T",
@@ -10557,7 +10537,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-sword-models-shuttlelift-5540f-1-50-344",
+      "id": "seed-sword-models-shuttlelift-5540f-1-50-343",
       "maker": "Sword Models",
       "itemNumber": null,
       "modelName": "Shuttlelift 5540F Carrydeck Crane",
@@ -10584,7 +10564,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-sterling-a-line-1-53-345",
+      "id": "seed-tonkin-replicas-sterling-a-line-1-53-344",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Sterling A Line Day Cab Single Axle Prime Mover(white wheels)",
@@ -10611,7 +10591,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-joal-sumitomo-s-90-1-40-346",
+      "id": "seed-joal-sumitomo-s-90-1-40-345",
       "maker": "Joal",
       "itemNumber": null,
       "modelName": "Sumitomo S 90 Excavator",
@@ -10638,7 +10618,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tadano-tr-1-50-347",
+      "id": "seed-tadano-tr-1-50-346",
       "maker": null,
       "itemNumber": null,
       "modelName": "Tadano TR Rough Terrain Crane",
@@ -10664,7 +10644,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-oxford-diecast-taxi-fx4-tx4-and-austin-1-76-348",
+      "id": "seed-oxford-diecast-taxi-fx4-tx4-and-austin-1-76-347",
       "maker": "Oxford Diecast",
       "itemNumber": null,
       "modelName": "Taxi FX4, TX4 & Austin 3 Taxi Vehicles set",
@@ -10691,7 +10671,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-tonkin-replicas-28-trailers-1-53-349",
+      "id": "seed-tonkin-replicas-tonkin-replicas-28-trailers-1-53-348",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Tonkin Replicas 28' Trailers 28' Double Flatbed Trailers",
@@ -10718,7 +10698,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-terex-2366adt-1-50-350",
+      "id": "seed-conrad-terex-2366adt-1-50-349",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "Terex 2366ADT Articulated Truck",
@@ -10745,7 +10725,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-terex-2566c-1-50-351",
+      "id": "seed-conrad-terex-2566c-1-50-350",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "Terex 2566C Articulated Truck",
@@ -10772,7 +10752,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-ertl-terex-3531-1-50-352",
+      "id": "seed-ertl-terex-3531-1-50-351",
       "maker": "Ertl",
       "itemNumber": null,
       "modelName": "Terex 3531 Backhoe",
@@ -10799,7 +10779,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-terex-ppm-ac40-2-1-50-353",
+      "id": "seed-nzg-terex-ppm-ac40-2-1-50-352",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "Terex PPM AC40-2 All Terrain Mobile Crane",
@@ -10826,13 +10806,13 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-terex-ta6s-1-50-354",
+      "id": "seed-nzg-terex-ta6s-1-50-353",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "Terex TA6s Mini Dumper",
       "machineMake": "Terex",
       "machineModel": "TA6s",
-      "machineType": "other",
+      "machineType": "off-highway truck",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -10853,7 +10833,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-terex-tg190-1-50-355",
+      "id": "seed-nzg-terex-tg190-1-50-354",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "Terex TG190 Motor Grader",
@@ -10880,7 +10860,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-iconic-replicas-toll-ctetoll-1-50-356",
+      "id": "seed-iconic-replicas-toll-ctetoll-1-50-355",
       "maker": "Iconic Replicas",
       "itemNumber": null,
       "modelName": "Toll CTETOLL 45' Extendable Dropdeck Trailer",
@@ -10907,7 +10887,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-twh-vermeer-tg7000-1-50-357",
+      "id": "seed-twh-vermeer-tg7000-1-50-356",
       "maker": "TWH",
       "itemNumber": null,
       "modelName": "Vermeer TG7000 Tub Grinder with Loader & Peterbilt 379 4 axle Day Cab",
@@ -10934,7 +10914,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-hongwell-volvo-a25c-1-50-358",
+      "id": "seed-hongwell-volvo-a25c-1-50-357",
       "maker": "Hongwell",
       "itemNumber": null,
       "modelName": "Volvo A25C Articulated Truck",
@@ -10961,7 +10941,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-volvo-a35c-1-50-359",
+      "id": "seed-conrad-volvo-a35c-1-50-358",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "Volvo A35C Articulated Truck",
@@ -10988,7 +10968,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-hongwell-volvo-a40d-1-50-360",
+      "id": "seed-hongwell-volvo-a40d-1-50-359",
       "maker": "Hongwell",
       "itemNumber": null,
       "modelName": "Volvo A40D Articulated Truck",
@@ -11015,7 +10995,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-joal-volvo-ec210-1-50-361",
+      "id": "seed-joal-volvo-ec210-1-50-360",
       "maker": "Joal",
       "itemNumber": null,
       "modelName": "Volvo EC210 Hydraulic Excavator",
@@ -11042,7 +11022,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-volvo-ec650-1-50-362",
+      "id": "seed-conrad-volvo-ec650-1-50-361",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "Volvo EC650 Hydraulic Front Shovel",
@@ -11069,7 +11049,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-hongwell-volvo-l150c-1-50-363",
+      "id": "seed-hongwell-volvo-l150c-1-50-362",
       "maker": "Hongwell",
       "itemNumber": null,
       "modelName": "Volvo L150C Wheel Loader",
@@ -11096,7 +11076,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-joal-volvo-l220e-1-50-364",
+      "id": "seed-joal-volvo-l220e-1-50-363",
       "maker": "Joal",
       "itemNumber": null,
       "modelName": "Volvo L220E Wheel Loader",
@@ -11123,7 +11103,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-volvo-l330c-1-50-365",
+      "id": "seed-conrad-volvo-l330c-1-50-364",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "Volvo L330C Wheel Loader",
@@ -11150,7 +11130,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-volvo-vnl670-1-53-366",
+      "id": "seed-tonkin-replicas-volvo-vnl670-1-53-365",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Volvo VNL670 Sleeper Cab & Tri Axle Trailer \"J.M.Bernier\"",
@@ -11177,7 +11157,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-volvo-vnl780-1-53-367",
+      "id": "seed-tonkin-replicas-volvo-vnl780-1-53-366",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Volvo VNL780 Sleeper Cab Tandem drive & 53' tandem axle van trailer",
@@ -11204,7 +11184,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-ertl-volvo-bm-540-1-50-368",
+      "id": "seed-ertl-volvo-bm-540-1-50-367",
       "maker": "Ertl",
       "itemNumber": null,
       "modelName": "Volvo BM 540 Dump Truck",
@@ -11231,7 +11211,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-joal-volvo-bm-6300-1-50-369",
+      "id": "seed-joal-volvo-bm-6300-1-50-368",
       "maker": "Joal",
       "itemNumber": null,
       "modelName": "Volvo BM 6300 Excavator Loader",
@@ -11258,7 +11238,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-conrad-volvo-bm-a35-1-50-370",
+      "id": "seed-conrad-volvo-bm-a35-1-50-369",
       "maker": "Conrad",
       "itemNumber": null,
       "modelName": "Volvo BM A35 Articulated Truck",
@@ -11285,7 +11265,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-ertl-wabco-haulpak-65-371",
+      "id": "seed-ertl-wabco-haulpak-65-370",
       "maker": "Ertl",
       "itemNumber": null,
       "modelName": "Wabco Haulpak 65 Dump Truck",
@@ -11312,7 +11292,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-wesehutte-w180-1-50-372",
+      "id": "seed-nzg-wesehutte-w180-1-50-371",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "Wesehutte W180 Dragline",
@@ -11339,7 +11319,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-western-star-4700-1-53-373",
+      "id": "seed-tonkin-replicas-western-star-4700-1-53-372",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Western Star 4700 Tandem Drive Day Cab Tipper",
@@ -11366,7 +11346,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-western-star-4800-rhd-1-53-374",
+      "id": "seed-tonkin-replicas-western-star-4800-rhd-1-53-373",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Western Star 4800 RHD Tandem Drive Day Cab with Bullbar",
@@ -11393,7 +11373,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-tonkin-replicas-western-star-4800-1-53-375",
+      "id": "seed-tonkin-replicas-western-star-4800-1-53-374",
       "maker": "Tonkin Replicas",
       "itemNumber": null,
       "modelName": "Western Star 4800 Tandem Drive Sleeper Cab with Bullbar",
@@ -11420,13 +11400,13 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-siku-wirtgen-w210-1-50-376",
+      "id": "seed-siku-wirtgen-w210-1-50-375",
       "maker": "Siku",
       "itemNumber": null,
       "modelName": "Wirtgen W210 Road Milling Machine",
       "machineMake": "Wirtgen",
       "machineModel": "W210",
-      "machineType": "other",
+      "machineType": "milling machine",
       "scale": "1:50",
       "year": 2012,
       "editionSize": null,
@@ -11447,13 +11427,13 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-siku-wirtgen-w2000-1-50-377",
+      "id": "seed-siku-wirtgen-w2000-1-50-376",
       "maker": "Siku",
       "itemNumber": null,
       "modelName": "Wirtgen W2000 Road Milling Machine",
       "machineMake": "Wirtgen",
       "machineModel": "W2000",
-      "machineType": "other",
+      "machineType": "milling machine",
       "scale": "1:50",
       "year": null,
       "editionSize": null,
@@ -11474,7 +11454,7 @@
       "notes": "Compiled in a collector catalogue (David's Hoardr collection)."
     },
     {
-      "id": "seed-nzg-zeppelin-z206r-1-50-378",
+      "id": "seed-nzg-zeppelin-z206r-1-50-377",
       "maker": "NZG",
       "itemNumber": null,
       "modelName": "Zeppelin Z206R Tracked Excavator",
