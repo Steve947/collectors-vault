@@ -321,6 +321,9 @@ textarea{resize:vertical;min-height:75px}
 .collection-header{display:flex;align-items:center;gap:6px;padding:9px 8px;cursor:pointer;border-radius:7px;transition:background .15s;user-select:none;background:var(--surface2);border:1px solid var(--border)}
 .collection-header:hover{border-color:var(--gold);background:rgba(201,168,76,.06)}
 .collection-header.active{background:rgba(201,168,76,.12);border-color:rgba(201,168,76,.3)}
+/* Sidebar row actions: hidden at rest so collection/group names read fully; revealed on hover/focus/active (desktop). Always shown on mobile below. */
+.collection-header>button,.group-header>button{display:none}
+.collection-header:hover>button,.collection-header:focus-within>button,.collection-header.active>button,.group-header:hover>button,.group-header:focus-within>button,.group-header.active>button{display:inline-block}
 
 
 /* ══════════════════════════════════════════
@@ -459,6 +462,7 @@ textarea{resize:vertical;min-height:75px}
 
   /* Collection header in sidebar */
   .collection-header{padding:10px 8px}
+  .collection-header>button,.group-header>button{display:inline-block}
 
   /* Extra field rows */
   .extra-field-row{grid-template-columns:1fr}
