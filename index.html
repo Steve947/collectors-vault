@@ -1094,7 +1094,7 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <button class="pdf-choice" onclick="closeModal('pdfChoiceModal');exportPDF()">
       <span class="pdf-choice-ic">📄</span>
       <span>
-        <b>Catalogue</b>
+        <b>Catalogue <span id="pdfCatLock" style="display:none;font-size:10px;color:var(--gold2);letter-spacing:.08em">· PRO</span></b>
         <small>A visual record of your collection — cover page, collections, groups and photo galleries. Good for browsing or showing off.</small>
       </span>
     </button>
@@ -1343,7 +1343,8 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
     <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px">Help &amp; contact</div>
     <p style="font-size:12px;color:var(--text3);margin-bottom:10px">Questions, bugs or feature ideas — we read every message.</p>
     <a class="btn btn-outline" style="width:100%;justify-content:center;margin-bottom:8px" href="mailto:support@hoardrapp.com?subject=Hoardr%20support" target="_blank" rel="noopener">✉ Email support</a>
-    <a class="btn btn-outline" style="width:100%;justify-content:center" href="privacy.html" target="_blank" rel="noopener">🔒 Privacy policy</a>
+    <a class="btn btn-outline" style="width:100%;justify-content:center;margin-bottom:8px" href="privacy.html" target="_blank" rel="noopener">🔒 Privacy policy</a>
+    <a class="btn btn-outline" style="width:100%;justify-content:center" href="terms.html" target="_blank" rel="noopener">📜 Terms of use</a>
     <p id="pfVersion" style="font-size:11px;color:var(--text3);text-align:center;margin:10px 0 0;opacity:.75"></p>
     <hr class="section-divider">
     <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--red2);margin-bottom:8px">Danger zone</div>
@@ -1790,8 +1791,22 @@ function _renderSmartImport(){
     html+='<div class="section-heading">'+s.items.length+' items detected</div><p style="font-size:12px;color:var(--text3);margin-bottom:8px">Review below; adjust the category if needed, then import.</p>';
   }
   html+='<div class="section-heading">Preview'+(s.kind==='items'?(' (first 5)'):' (first 3)')+'</div><div id="siPreview" style="font-size:12px"></div>';
+  const _siTotal=(s.kind==='table'?s.rows.length:s.items.length);
+  const _siRoom=isPro()?Infinity:Math.max(0,FREE_MAX_ITEMS-db.items.length);
+  const _siOver=(!isPro() && _siTotal>_siRoom);
+  if(_siOver){
+    html='<div style="background:rgba(201,168,76,.10);border:1px solid var(--gold);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12.5px">'
+      +'<b>This import has '+_siTotal+' items.</b> Your free plan has room for '+_siRoom+' more (the '+FREE_MAX_ITEMS+' item limit).'
+      +'<div style="margin-top:8px"><button class="btn btn-gold btn-sm" onclick="openUpgrade()">Upgrade to Pro to import all '+_siTotal+'</button></div>'
+      +'<div style="margin-top:6px;color:var(--text3)">'+(_siRoom>0?('Or import the first '+_siRoom+' now and add the rest after upgrading.'):'Upgrade to import these items.')+'</div>'
+      +'</div>'+html;
+  }
   body.innerHTML=html;
-  const btn=document.getElementById('siImportBtn'); if(btn){ btn.style.display=''; btn.textContent='Import '+(s.kind==='table'?s.rows.length:s.items.length)+' items'; }
+  const btn=document.getElementById('siImportBtn');
+  if(btn){
+    if(_siOver && _siRoom<=0){ btn.style.display='none'; }
+    else { btn.style.display=''; btn.textContent = _siOver ? ('Import the first '+_siRoom+' that fit') : ('Import '+_siTotal+' items'); }
+  }
   _siRenderPreview();
 }
 function _siItemFromValues(values,category){
@@ -1821,8 +1836,14 @@ function _siRenderPreview(){
   }).join('');
 }
 async function smartImportApply(){
-  const s=_smartImport; const items=_siItemsToImport().filter(it=> it.name || Object.keys(it.catFieldVals).length || it.notes || it.value);
+  const s=_smartImport; let items=_siItemsToImport().filter(it=> it.name || Object.keys(it.catFieldVals).length || it.notes || it.value);
   if(!items.length){ showToast('Nothing to import — check the mapping','⚠️'); return; }
+  let _held=0;
+  if(!isPro()){
+    const room=Math.max(0,FREE_MAX_ITEMS-db.items.length);
+    if(items.length>room){ _held=items.length-room; items=items.slice(0,room); }
+    if(!items.length){ showToast('Your free plan is full ('+FREE_MAX_ITEMS+' items). Upgrade to Pro to import.','🔒'); try{openUpgrade();}catch(_){} return; }
+  }
   const colName='Imported: '+(s.fname||'list');
   const btn=document.getElementById('siImportBtn'); const orig=btn?btn.textContent:''; if(btn){btn.disabled=true; btn.textContent='Importing…';}
   const now=()=>new Date().toISOString();
@@ -1837,14 +1858,17 @@ async function smartImportApply(){
       const grpId=uid(); db.groups.push({id:grpId,name:'Imported items',collectionId:colId,category:s.category||'',icon:'📦',desc:'',createdAt:now(),_open:true});
       items.forEach(it=>db.items.push(Object.assign({id:uid()},it,{groupId:grpId,createdAt:now()}))); saveLocal(); render();
     }
-    closePanel('smartImportOverlay'); showToast('Imported '+items.length+' items into "'+colName+'"','✓');
+    closePanel('smartImportOverlay'); showToast('Imported '+items.length+' items into "'+colName+'"'+(_held>0?('. '+_held+' held, upgrade to Pro to add them'):''),'✓');
   }catch(e){ showToast('Import failed: '+((e&&e.message)||'try again'),'⚠️'); }
   finally{ if(btn){btn.disabled=false; btn.textContent=orig||'Import items';} }
 }
-const APP_VERSION = '1.4.2';             // semantic version — quote in bug reports
-const APP_VERSION_DATE = '2026-09-09';   // release date of this build
+const APP_VERSION = '1.4.3';             // semantic version — quote in bug reports
+const APP_VERSION_DATE = '2026-09-13';   // release date of this build
 // Newest first. Each: {v, date, changes:[...]}. Drives the What's New modal.
 const CHANGELOG = [
+  { v:'1.4.3', date:'13 Sep 2026', changes:[
+    'Added a Terms of Use page, linked from Profile under Help and contact.',
+  ]},
   { v:'1.4.2', date:'9 Sep 2026', changes:[
     'Diecast items now have a Find in mining catalogue search at the top of the Diecast details. Start typing a model such as 797F, Komatsu 930E or Liebherr T282, pick it, and Hoardr fills in the maker, vehicle make, model, scale and year. Everything stays editable.',
     'Collection names in the sidebar are now fully readable. The row buttons tuck away until you hover over a collection, and stay visible on mobile.',
@@ -1871,7 +1895,7 @@ const CHANGELOG = [
     'Deleting a category now lets you choose which category its items move to.',
   ]},
 ];
-const FREE_MAX_ITEMS = 250, FREE_MAX_COLLECTIONS = 5, FREE_MAX_PHOTOS = 3, PRO_MAX_PHOTOS = 6;
+const FREE_MAX_ITEMS = 200, FREE_MAX_COLLECTIONS = 5, FREE_MAX_PHOTOS = 3, PRO_MAX_PHOTOS = 6;
 // Absolute per-account ceilings (cost protection, everyone — NOT a tier limit).
 const HARD_MAX_ITEMS = 5000, HARD_MAX_COLLECTIONS = 100;
 // ── Monetisation: currently FREE FOR EVERYONE ──────────────────────────
@@ -2766,7 +2790,7 @@ async function saveCollection() {
     showToast(`You've reached the ${HARD_MAX_COLLECTIONS}-collection limit. Contact support if you need more.`,'⚠️'); return;
   }
   if (!id && !isPro() && db.collections.length >= FREE_MAX_COLLECTIONS) {
-    showToast(`Free plan is limited to ${FREE_MAX_COLLECTIONS} collections — Pro (coming soon) unlocks unlimited`,'🔒'); return;
+    showToast(`Free plan covers ${FREE_MAX_COLLECTIONS} collections. Upgrade to Pro for unlimited.`,'🔒'); try{openUpgrade();}catch(_){} return;
   }
   const data = {
     name, category: document.getElementById('cCategory').value,
@@ -3158,7 +3182,7 @@ async function saveItem() {
     showToast(`You've reached the ${HARD_MAX_ITEMS.toLocaleString()}-item limit. Contact support if you need more.`,'⚠️'); return;
   }
   if (!document.getElementById('editId').value && !isPro() && db.items.length >= FREE_MAX_ITEMS) {
-    showToast(`Free plan is limited to ${FREE_MAX_ITEMS} items — Pro (coming soon) unlocks unlimited`,'🔒'); return;
+    showToast(`Free plan covers ${FREE_MAX_ITEMS} items. Upgrade to Pro for unlimited.`,'🔒'); try{openUpgrade();}catch(_){} return;
   }
   rememberCustomCat(getCategoryValue(), getCategoryEmoji());
   const btn = document.getElementById('saveItemBtn');
@@ -3278,7 +3302,7 @@ async function deleteItem(id) {
 }
 
 function duplicateItem(id) {
-  if(!isPro()){ showToast('Duplicate item is a Pro feature — coming soon','🔒'); return; }
+  if(!isPro()){ showToast('Duplicate item is a Pro feature.','🔒'); try{openUpgrade();}catch(_){} return; }
   const original = db.items.find(i=>i.id===id);
   if (!original) return;
   const copy = JSON.parse(JSON.stringify(original));
@@ -3802,7 +3826,7 @@ function handlePhotoUpload(e){
   const MAX_PHOTOS=maxPhotos();
   let files=Array.from(e.target.files);
   const room=MAX_PHOTOS-editPhotoData.length;
-  if(room<=0){ showToast(isPro()?`Maximum ${MAX_PHOTOS} photos per item`:`Free plan allows ${MAX_PHOTOS} photos/item — Pro (coming soon) unlocks 6`,'🔒'); e.target.value=''; return; }
+  if(room<=0){ showToast(isPro()?`Maximum ${MAX_PHOTOS} photos per item`:`Free plan allows ${MAX_PHOTOS} photos per item. Upgrade to Pro for 6.`,'🔒'); e.target.value=''; return; }
   if(files.length>room){ showToast(`Only ${room} more photo(s) allowed (max ${MAX_PHOTOS})`,'⚠️'); files=files.slice(0,room); }
   const runAi=_pendingAiAfterPhoto; _pendingAiAfterPhoto=false; let _first=true;
   files.forEach(file=>{
@@ -4142,7 +4166,6 @@ function _pickCol(row,prefix){ const k=Object.keys(row).find(k=>k.indexOf(prefix
 function _xc(v){return (typeof v==='string'&&v.length>32767)?v.slice(0,32760)+'…':v;}
 function _aoa(rows){return XLSX.utils.aoa_to_sheet(rows.map(r=>r.map(_xc)));}
 async function exportExcel(){
-  if(!isPro()){ showToast('Excel export is a Pro feature — coming soon','🔒'); return; }
   if(!db.items.length && !db.collections.length){showToast('Nothing to export','⚠️');return;}
   showToast('Building Excel — please wait…','⏳');
   await new Promise(r=>setTimeout(r,60));
@@ -4289,7 +4312,7 @@ async function exportExcel(){
 // Restores photos from base64 column if present
 // ─────────────────────────────────────────────────────────────
 async function importExcel(e){
-  if(!isPro()){ showToast('Excel import is a Pro feature — coming soon','🔒'); e.target.value=''; return; }
+  if(!isPro()){ showToast('Excel import is a Pro feature.','🔒'); e.target.value=''; try{openUpgrade();}catch(_){} return; }
   const file=e.target.files[0]; if(!file)return;
   showToast('Importing…','⏳');
   const reader=new FileReader();
@@ -4531,7 +4554,7 @@ async function importExcel(e){
 // insurer. This is a self-declared inventory, NOT an independent valuation.
 // ─────────────────────────────────────────────────────────────
 async function exportInsuranceReport(){
-  if(!isPro()){ showToast('Insurance report is a Pro feature — coming soon','🔒'); return; }
+  if(!isPro()){ showToast('The insurance appraisal is a Pro feature.','🔒'); try{openUpgrade();}catch(_){} return; }
   if(!db.items.length){ showToast('No items to report','⚠️'); return; }
   showToast('Building insurance schedule… please wait','⏳');
   await new Promise(r=>setTimeout(r,60));
@@ -4858,6 +4881,7 @@ async function exportInsuranceReport(){
 // PDF EXPORT  –  Collection > Group > Items with full photo galleries
 // ─────────────────────────────────────────────────────────────
 async function exportPDF(){
+  if(!isPro()){ showToast('The catalogue PDF is a Pro feature. Your data stays exportable free via Excel.','🔒'); try{openUpgrade();}catch(_){} return; }
   if(!db.items.length){showToast('No items to export','⚠️');return;}
   const inclPhotos = isPro();
   showToast(inclPhotos?'Building PDF with photos… please wait':'Building PDF…','⏳');
@@ -5657,6 +5681,7 @@ async function restoreItem(item){
 function openPdfChooser(){
   const lock=document.getElementById('pdfInsLock');
   if(lock) lock.style.display = isPro() ? 'none' : 'inline';
+  const lc=document.getElementById('pdfCatLock'); if(lc) lc.style.display = isPro() ? 'none' : 'inline';
   openModal('pdfChoiceModal');
 }
 // ── Overlay stack + hardware Back button ────────────────────────────────
