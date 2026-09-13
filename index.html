@@ -559,13 +559,27 @@ input:focus,select:focus,textarea:focus{box-shadow:0 0 0 3px rgba(201,168,76,.16
       <div class="field-row"><label>Display Name</label><input type="text" id="suName" placeholder="Your name"></div>
       <div class="field-row"><label>Email</label><input type="email" id="suEmail" placeholder="your@email.com"></div>
       <div class="field-row"><label>Password</label><input type="password" id="suPass" placeholder="Min 6 characters"></div>
+      <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:var(--text2);margin:2px 0 14px;line-height:1.5;cursor:pointer">
+        <input type="checkbox" id="suConsent" style="margin-top:2px;flex:none">
+        <span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener" style="color:var(--gold2)">Terms of Use</a> and <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--gold2)">Privacy Policy</a>.</span>
+      </label>
       <button class="btn btn-gold" style="width:100%;justify-content:center" onclick="signUp()">Create Account →</button>
     </div>
     <div id="googleAuthSection">
       <div class="auth-divider">or</div>
       <button class="google-btn" onclick="signInGoogle()"><div class="google-logo"></div> Continue with Google</button>
     </div>
-    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:16px">Your collection is private and only accessible to you.</p>
+    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:14px">By continuing you agree to our <a href="terms.html" target="_blank" rel="noopener" style="color:var(--text3);text-decoration:underline">Terms of Use</a> and <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--text3);text-decoration:underline">Privacy Policy</a>.</p>
+    <p style="font-size:11px;color:var(--text3);text-align:center;margin-top:8px">Your collection is private and only accessible to you.</p>
+  </div>
+</div>
+
+<div id="reconsentOverlay" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(8,7,4,.94);align-items:center;justify-content:center;padding:20px">
+  <div class="auth-box" style="max-width:440px">
+    <h2 style="font-family:Georgia,'Times New Roman',serif;color:var(--gold2);margin:0 0 10px">One quick agreement</h2>
+    <p style="color:var(--text2);font-size:14px;line-height:1.65">Please review and agree to our <a href="terms.html" target="_blank" rel="noopener" style="color:var(--gold2)">Terms of Use</a> and <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--gold2)">Privacy Policy</a> to keep using Hoardr. Your collection is safe and unchanged.</p>
+    <button class="btn btn-gold" style="width:100%;justify-content:center;margin-top:8px" onclick="acceptTos()">I agree and continue</button>
+    <button class="btn btn-outline" style="width:100%;justify-content:center;margin-top:8px" onclick="declineTos()">Sign out</button>
   </div>
 </div>
 
@@ -1864,10 +1878,13 @@ async function smartImportApply(){
 }
 const APP_VERSION = '1.4.3';             // semantic version — quote in bug reports
 const APP_VERSION_DATE = '2026-09-13';   // release date of this build
+const TOS_VERSION = '1.0';   // Terms of Use / Privacy version accepted at sign up
 // Newest first. Each: {v, date, changes:[...]}. Drives the What's New modal.
 const CHANGELOG = [
   { v:'1.4.3', date:'13 Sep 2026', changes:[
     'Added a Terms of Use page, linked from Profile under Help and contact.',
+    'Creating an account now asks you to agree to the Terms of Use and Privacy Policy first.',
+    'If our Terms or Privacy Policy change, we ask you to review and agree the next time you open the app.',
   ]},
   { v:'1.4.2', date:'9 Sep 2026', changes:[
     'Diecast items now have a Find in mining catalogue search at the top of the Diecast details. Start typing a model such as 797F, Komatsu 930E or Liebherr T282, pick it, and Hoardr fills in the maker, vehicle make, model, scale and year. Everything stays editable.',
@@ -2614,7 +2631,10 @@ function setupAuthListener() {
   });
 }
 
+let _authMode = 'signin';
+let _justConsented = false;
 function switchAuthTab(tab) {
+  _authMode = tab;
   document.getElementById('signinForm').style.display = tab==='signin' ? 'block' : 'none';
   document.getElementById('signupForm').style.display = tab==='signup' ? 'block' : 'none';
   document.getElementById('tabSignIn').classList.toggle('active', tab==='signin');
@@ -2663,19 +2683,44 @@ async function signUp() {
   const email = document.getElementById('suEmail').value.trim();
   const pass = document.getElementById('suPass').value;
   if (!email||!pass) { authError('Please fill all fields.'); return; }
+  const _cb = document.getElementById('suConsent');
+  if (!_cb || !_cb.checked) { authError('Please tick the box to agree to the Terms of Use and Privacy Policy.'); return; }
+  _justConsented = true;
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     if (name) await cred.user.updateProfile({ displayName: name });
+    try { await firestoreDb.doc('users/'+cred.user.uid+'/settings/prefs').set({ tosAccepted:{ version:TOS_VERSION, at: firebase.firestore.FieldValue.serverTimestamp() } }, {merge:true}); } catch(_e){}
     try { await cred.user.sendEmailVerification(); showToast('Account created — check your email to verify your address','✉️'); } catch(_e){}
   } catch(e) { authError(friendlyAuthError(e)); }
 }
 async function signInGoogle() {
   try {
+    if (_authMode==='signup' && !(document.getElementById('suConsent') && document.getElementById('suConsent').checked)) { authError('Please tick the box to agree to the Terms of Use and Privacy Policy.'); return; }
+    if (_authMode==='signup') _justConsented = true;
     const provider = new firebase.auth.GoogleAuthProvider();
     provider.setCustomParameters({prompt: 'select_account'});
-    await auth.signInWithPopup(provider);
+    const result = await auth.signInWithPopup(provider);
+    try { if (result && result.additionalUserInfo && result.additionalUserInfo.isNewUser && result.user) { await firestoreDb.doc('users/'+result.user.uid+'/settings/prefs').set({ tosAccepted:{ version:TOS_VERSION, at: firebase.firestore.FieldValue.serverTimestamp() } }, {merge:true}); } } catch(_e){}
   } catch(e) { authError(friendlyAuthError(e) + ' (Code: ' + (e.code||'unknown') + ')'); }
 }
+// Re-consent gate: when TOS_VERSION changes (or a pre-existing account never recorded one),
+// ask the signed-in user to agree again before continuing. Fails open on any read error so
+// a transient glitch never locks anyone out.
+async function checkTosConsent(){
+  try{
+    if(!(firebaseMode&&currentUser)) return;
+    if(_justConsented) return;
+    const d=await firestoreDb.doc(`${userPath()}/settings/prefs`).get();
+    const t=d.exists?d.get('tosAccepted'):null;
+    if(!t || t.version!==TOS_VERSION){ const o=document.getElementById('reconsentOverlay'); if(o) o.style.display='flex'; }
+  }catch(e){ /* fail open */ }
+}
+async function acceptTos(){
+  _justConsented=true;
+  try{ await firestoreDb.doc(`${userPath()}/settings/prefs`).set({ tosAccepted:{ version:TOS_VERSION, at: firebase.firestore.FieldValue.serverTimestamp() } }, {merge:true}); }catch(e){}
+  const o=document.getElementById('reconsentOverlay'); if(o) o.style.display='none';
+}
+function declineTos(){ const o=document.getElementById('reconsentOverlay'); if(o) o.style.display='none'; signOutUser(); }
 function signOutUser() {
   if (!firebaseMode) { useDemoMode(); return; }
   if (unsubCollections) { unsubCollections(); unsubCollections = null; }
@@ -2703,6 +2748,7 @@ function startRealtimeSync() {
   setSyncStatus('syncing');
   loadCurrencyPref();
   loadCustomCats();
+  checkTosConsent();
   setTimeout(maybeShowWhatsNew, 1800);
 
   unsubCollections = firestoreDb.collection(`${userPath()}/collections`)

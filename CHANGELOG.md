@@ -4,6 +4,18 @@ All notable changes to Hoardr are recorded here. Versioning is `MAJOR.MINOR.PATC
 with the release date; the same list drives the in-app **What's New** panel
 (Profile → "What's new"). Newest first.
 
+## [1.4.3] · 2026-09-13
+
+### Added
+- Terms of Use page (terms.html), linked in the app under Profile, Help and contact, and added to the publish allowlist.
+- Sign up agreement: creating an account now requires ticking a box to agree to the Terms of Use and Privacy Policy. A "By continuing" notice covers the Google path, and each new account's acceptance (version plus timestamp) is recorded in its settings.
+- Agreement on updates: if the Terms of Use or Privacy Policy version changes, existing users are asked to review and agree again the next time they open the app (the app compares the acceptance version stored in the user's settings against the current one, and fails open on a read error so no one is locked out).
+
+### Changed
+- Privacy Policy updated to version 1.1: added Stripe and Google Gemini as subprocessors.
+- Free tier plumbing (dormant until go live): item cap set to 200 and collections to 5; the caps and the Pro gates (duplicate item, catalogue PDF, insurance) now open the upgrade flow instead of a "coming soon" message; the export split is inverted so raw Excel export is free while the catalogue PDF is Pro; Smart Import now warns and offers Upgrade or "import the first N that fit" when an import would exceed the free room.
+- Sidebar collection names are now fully readable; the per row action buttons appear on hover and stay visible on mobile.
+
 ## [1.4.2] — 2026-09-09
 
 ### Added
